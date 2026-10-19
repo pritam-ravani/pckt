@@ -81,50 +81,109 @@ class IngestionService {
             .into(db.rawMessages)
             .insert(raw(ParseStatus.pendingLlm, reason: reason), mode: InsertMode.insertOrIgnore);
       case Parsed(:final txn):
-        final sourceKey = DedupEngine.sourceKey(input.source, input.sender);
-        final match = dedup.best(txn, sourceKey, await _candidates(txn));
-
-        if (match != null && match.score >= DedupEngine.autoMerge) {
-          report.merged++;
-          await _enrich(match.candidate.id, txn);
-          await db
+        await _store(
+          txn,
+          source: input.source,
+          sender: input.sender,
+          body: input.body,
+          categorizer: categorizer,
+          accounts: accounts,
+          report: report,
+          writeRaw: (status, {txnId, score}) => db
               .into(db.rawMessages)
               .insert(
-                raw(ParseStatus.merged, txnId: match.candidate.id, score: match.score),
+                raw(status, txnId: txnId, score: score),
                 mode: InsertMode.insertOrIgnore,
-              );
-          return;
-        }
-
-        final possibleDup = match != null && match.score >= DedupEngine.review;
-        final needsReview = possibleDup || txn.confidence < 0.7;
-        if (needsReview) report.flagged++;
-        report.added++;
-
-        final account = await _resolveAccount(txn, input.body, accounts);
-        final id = await db
-            .into(db.transactions)
-            .insert(
-              TransactionsCompanion.insert(
-                amountMinor: txn.amountMinor,
-                direction: txn.direction,
-                occurredAt: txn.occurredAt,
-                merchant: Value(txn.merchant),
-                counterparty: Value(txn.counterparty),
-                categoryId: Value(categorizer.categorize(txn, input.body)),
-                accountId: Value(account?.id),
-                accountHint: Value(txn.accountHint),
-                mode: txn.mode,
-                reference: Value(txn.reference),
-                status: needsReview ? TxnStatus.needsReview : TxnStatus.confirmed,
-                isTransfer: Value(txn.transferHint),
-                duplicateOfId: Value(possibleDup ? match.candidate.id : null),
               ),
-            );
-        await db.into(db.rawMessages).insert(raw(ParseStatus.parsed, txnId: id), mode: InsertMode.insertOrIgnore);
-        if (account != null && !txn.transferHint) {
-          await _detectSelfTransfer(id, txn, account.id, categorizer.transferId);
-        }
+        );
+    }
+  }
+
+  /// Applies a transaction extracted out-of-band (e.g. by the LLM fallback)
+  /// to a raw message that is already stored. Runs the same dedup →
+  /// categorise → store path as [ingest], but updates the existing raw row
+  /// instead of inserting a new one. Returns the resulting raw status
+  /// ([ParseStatus.parsed] or [ParseStatus.merged]).
+  Future<ParseStatus> applyParsed(RawMessage message, ParsedTxn txn, {IngestReport? report}) async {
+    final categorizer = Categorizer(await db.allCategories(), await db.allMerchantRules());
+    final accounts = await db.allAccounts();
+    late ParseStatus result;
+    await db.transaction(() async {
+      await _store(
+        txn,
+        source: message.source,
+        sender: message.sender,
+        body: message.body,
+        categorizer: categorizer,
+        accounts: accounts,
+        report: report ?? IngestReport(),
+        writeRaw: (status, {txnId, score}) async {
+          result = status;
+          await (db.update(db.rawMessages)..where((m) => m.id.equals(message.id))).write(
+            RawMessagesCompanion(
+              parseStatus: Value(status),
+              transactionId: Value(txnId),
+              mergeScore: Value(score),
+              ignoreReason: const Value(null),
+            ),
+          );
+        },
+      );
+    });
+    return result;
+  }
+
+  /// Shared tail of the pipeline for a parsed transaction: dedup against
+  /// existing transactions, then merge or insert, then record the raw
+  /// message's outcome via [writeRaw].
+  Future<void> _store(
+    ParsedTxn txn, {
+    required SourceKind source,
+    required String sender,
+    required String body,
+    required Categorizer categorizer,
+    required List<Account> accounts,
+    required IngestReport report,
+    required Future<void> Function(ParseStatus status, {int? txnId, double? score}) writeRaw,
+  }) async {
+    final sourceKey = DedupEngine.sourceKey(source, sender);
+    final match = dedup.best(txn, sourceKey, await _candidates(txn));
+
+    if (match != null && match.score >= DedupEngine.autoMerge) {
+      report.merged++;
+      await _enrich(match.candidate.id, txn);
+      await writeRaw(ParseStatus.merged, txnId: match.candidate.id, score: match.score);
+      return;
+    }
+
+    final possibleDup = match != null && match.score >= DedupEngine.review;
+    final needsReview = possibleDup || txn.confidence < 0.7;
+    if (needsReview) report.flagged++;
+    report.added++;
+
+    final account = await _resolveAccount(txn, body, accounts);
+    final id = await db
+        .into(db.transactions)
+        .insert(
+          TransactionsCompanion.insert(
+            amountMinor: txn.amountMinor,
+            direction: txn.direction,
+            occurredAt: txn.occurredAt,
+            merchant: Value(txn.merchant),
+            counterparty: Value(txn.counterparty),
+            categoryId: Value(categorizer.categorize(txn, body)),
+            accountId: Value(account?.id),
+            accountHint: Value(txn.accountHint),
+            mode: txn.mode,
+            reference: Value(txn.reference),
+            status: needsReview ? TxnStatus.needsReview : TxnStatus.confirmed,
+            isTransfer: Value(txn.transferHint),
+            duplicateOfId: Value(possibleDup ? match.candidate.id : null),
+          ),
+        );
+    await writeRaw(ParseStatus.parsed, txnId: id);
+    if (account != null && !txn.transferHint) {
+      await _detectSelfTransfer(id, txn, account.id, categorizer.transferId);
     }
   }
 
