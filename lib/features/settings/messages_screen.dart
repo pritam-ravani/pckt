@@ -10,9 +10,11 @@ import '../../data/db/database.dart';
 import '../../providers.dart';
 import '../../ui/widgets.dart';
 
-/// Shows how each SMS was handled — the main tool for spotting parser gaps.
+/// Shows how each SMS / email was handled — the main tool for spotting parser gaps.
 class MessagesScreen extends ConsumerStatefulWidget {
-  const MessagesScreen({super.key});
+  const MessagesScreen({super.key, this.source = SourceKind.sms});
+
+  final SourceKind source;
 
   @override
   ConsumerState<MessagesScreen> createState() => _MessagesScreenState();
@@ -25,7 +27,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
   Widget build(BuildContext context) {
     final db = ref.watch(databaseProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Message log')),
+      appBar: AppBar(title: Text(widget.source == SourceKind.email ? 'Email log' : 'SMS log')),
       body: Column(
         children: [
           SizedBox(
@@ -53,12 +55,14 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
           ),
           Expanded(
             child: StreamBuilder(
-              stream: db.watchRawMessages(SourceKind.sms, {_status}),
+              stream: db.watchRawMessages(widget.source, {_status}),
               builder: (context, snap) {
                 final list = snap.data ?? const <RawMessage>[];
                 if (list.isEmpty) {
-                  return const EmptyState(
-                    icon: PhosphorIconsFill.chatText,
+                  return EmptyState(
+                    icon: widget.source == SourceKind.email
+                        ? PhosphorIconsFill.envelopeSimple
+                        : PhosphorIconsFill.chatText,
                     title: 'Nothing here',
                     message: 'No messages in this bucket.',
                   );
@@ -100,7 +104,13 @@ class _MessageCard extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 8),
-        Text(message.body, style: context.text.bodySmall?.copyWith(height: 1.45)),
+        Text(
+          message.body,
+          // Emails can be long; tap copies the full text.
+          maxLines: message.source == SourceKind.email ? 14 : null,
+          overflow: message.source == SourceKind.email ? TextOverflow.ellipsis : null,
+          style: context.text.bodySmall?.copyWith(height: 1.45),
+        ),
         const SizedBox(height: 6),
         Text(
           dateTimeLabel(message.receivedAt),

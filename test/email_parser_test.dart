@@ -168,6 +168,16 @@ void main() {
       expect(t.reference, isNull);
     });
 
+    test('Flipkart confirmation with a "Track order" button still counts', () {
+      final t = ok(
+        'Flipkart <no-reply@flipkart.com>',
+        'Your Flipkart order has been successfully placed',
+        plain: 'Thank you for your order!\nTrack Order\nAmount Paid ₹2,349.00\nPaid using UPI',
+      );
+      expect(t.amountMinor, 234900);
+      expect(t.merchant, 'Flipkart');
+    });
+
     test('Uber trip receipt', () {
       final t = ok(
         'Uber Receipts <noreply@uber.com>',

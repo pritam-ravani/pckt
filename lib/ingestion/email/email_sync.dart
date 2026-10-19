@@ -182,6 +182,14 @@ class EmailSyncController extends Notifier<EmailSyncState> {
     state = state.copyWith(enabled: false);
   }
 
+  /// For app start / resume: a mailbox round-trip is heavier than reading
+  /// the SMS inbox, so skip it when the last sync is recent.
+  Future<IngestReport?> syncIfDue({Duration minInterval = const Duration(minutes: 10)}) {
+    final last = state.lastSync;
+    if (last != null && DateTime.now().difference(last) < minInterval) return Future.value();
+    return sync();
+  }
+
   /// Incremental sync; concurrent callers share the running sync.
   Future<IngestReport?> sync() {
     if (!state.enabled || state.account == null) return Future.value();

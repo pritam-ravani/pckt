@@ -7,8 +7,10 @@ import '../../core/theme/icons.dart';
 import '../../core/format.dart';
 import '../../core/theme/palette.dart';
 import '../../data/db/database.dart';
+import '../../ingestion/email/email_sync.dart';
 import '../../providers.dart';
 import '../../ui/widgets.dart';
+import 'email_source_card.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -31,12 +33,7 @@ class SettingsScreen extends ConsumerWidget {
             const SectionHeader('Sources'),
             const _SmsCard(),
             const SizedBox(height: 10),
-            const _ComingSoonCard(
-              icon: PhosphorIconsFill.envelopeSimple,
-              color: Palette.amber,
-              title: 'Gmail',
-              subtitle: 'Bank alerts & receipts from email, deduplicated against SMS',
-            ),
+            const EmailSourceCard(),
             const SizedBox(height: 10),
             const _ComingSoonCard(
               icon: PhosphorIconsFill.sparkle,
@@ -112,6 +109,7 @@ class SettingsScreen extends ConsumerWidget {
                       if (ok == true) {
                         await ref.read(databaseProvider).resetImported();
                         await ref.read(prefsProvider).remove(PrefKeys.smsLastSync);
+                        await ref.read(prefsProvider).remove(EmailPrefKeys.lastSync);
                       }
                     },
                   ),

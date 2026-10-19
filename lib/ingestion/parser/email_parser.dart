@@ -54,6 +54,9 @@ class EmailParser implements MessageParser {
     r'(order (has been |was |is )?cancel+ed|cancel+ation (request|confirmed|successful)|return (request|pickup|initiated)|'
     r'(has been|was) returned|replacement)',
   );
+  static final _orderConfirmed = RegExp(
+    r'order (has been |is )?(placed|confirmed|successful)|thank(s| you) for (your )?(order|purchase)|order confirmation',
+  );
   static final _cod = RegExp(r'(cash on delivery|pay on delivery|\bcod\b|pay (at|on) (delivery|pickup))');
   static final _cart = RegExp(
     r'(your cart|left (something |items? )?in (your )?cart|complete your (order|purchase|booking)|still interested|'
@@ -221,7 +224,12 @@ class EmailParser implements MessageParser {
     final refund = _refundDone.hasMatch(lower);
     if (!refund) {
       if (_cancelled.hasMatch(lower)) return const Ignored('Cancellation / return');
-      if (!deliveredIsReceipt && _shipping.hasMatch(lower)) return const Ignored('Shipping update');
+      // Order confirmations often carry a "Track order" button; only the
+      // subject (or a body that isn't a confirmation) marks a shipping update.
+      if (!deliveredIsReceipt &&
+          (_shipping.hasMatch(subject) || (!_orderConfirmed.hasMatch(lower) && _shipping.hasMatch(lower)))) {
+        return const Ignored('Shipping update');
+      }
       if (_failedOrPending.hasMatch(lower)) return const Ignored('Failed / pending');
       if (_cod.hasMatch(lower)) return const Ignored('Cash on delivery');
       if (_statement.hasMatch(lower) && !RegExp(r'\b(paid|payment (successful|received))\b').hasMatch(lower)) {
