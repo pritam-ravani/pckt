@@ -21,6 +21,14 @@ abstract interface class LlmClient {
   Future<List<String>> listModels();
 }
 
+/// Implemented by clients with a small context window (on-device models) so
+/// batch jobs can size requests to fit and the assistant can tell whether
+/// tool use is available. Cloud clients don't implement it.
+abstract interface class LlmBudget {
+  int get contextTokens;
+  bool get supportsTools;
+}
+
 // ------------------------------------------------------------------ messages
 
 sealed class LlmMessage {

@@ -114,7 +114,7 @@ pick; there is no Pckt server. Models are listed live from the provider's models
 | Ollama / LM Studio on your computer | OpenAI-compatible at `http://<LAN-IP>:11434/v1` / `:1234/v1` | key optional; pick a model with tool calling |
 | Anthropic Claude | Messages API + tool use | |
 | Google Gemini | `generateContent` + function declarations | |
-| On-device | — | coming in phase 5 |
+| On this phone (Gemma) | LiteRT-LM via `flutter_edge_ai` | model picked for the device, downloaded once; see below |
 
 What it does:
 
@@ -140,6 +140,29 @@ matching switch is on:
 | AI reading of unreadable messages | **off** | the full text and sender of those messages |
 | Assistant chat | on | your questions + structured tool results (totals, matching transactions); never raw messages |
 
+## On-device models
+
+Settings → Connect your LLM → *On this phone (Gemma)*. Pckt reads the phone's RAM, chip, free
+storage, Android version and GPU support (`pckt/device` channel) and recommends the most capable
+model that fits (`lib/llm/on_device/model_catalog.dart`):
+
+| Model | Download | Picked when | Ask tab |
+|---|---|---|---|
+| Gemma 4 E4B | 3.4 GB | ≥ 10.5 GB RAM | ✓ |
+| Gemma 4 E2B | 2.4 GB | ≥ 5.2 GB RAM (6 GB phones) | ✓ |
+| Gemma 3 1B | 0.6 GB | small phones, with a Hugging Face token (gated licence) | — |
+| Qwen3 0.6B | 0.3 GB | small phones, no token | ✓ |
+
+- Runs on the GPU (OpenCL) and falls back to CPU; Gemma 4 runs at float32 because half precision
+  copies digits wrongly from long prompts.
+- Downloads run as a `dataSync` foreground service with a notification (WorkManager otherwise kills
+  them at 9 minutes, and Hugging Face files can't resume). Mobile data is never used without asking;
+  if Wi-Fi drops the download stops, and orphaned downloads are cancelled at startup.
+- Needs Android 11+ on arm64 (`minSdk 30`). Qualcomm / Tensor NPU bundles are in the catalog but off:
+  enabling them means `qualcomm_npu: true` in pubspec (Qualcomm's licence, +83 MB).
+- Measured on a Galaxy F23 (6 GB, Snapdragon 750G): Gemma 4 E2B loads on the GPU and calls tools,
+  but memory is tight and a multi-step Ask answer takes minutes.
+
 ## Roadmap
 
 - [x] Phase 1 — app shell, theme, DB, dashboard, activity, insights, manual entry
@@ -149,4 +172,4 @@ matching switch is on:
 - [x] Phase 4 — Bring-your-own LLM: OpenAI-compatible / Anthropic / Gemini, key in secure storage;
       LLM fallback for unreadable messages; agent chat with tools over the local DB
 - [ ] Phase 5 — budgets, subscription detection, iOS Shortcuts bridge, SQLCipher encryption,
-      on-device model, real-time SMS receiver
+      real-time SMS receiver (on-device Gemma models: done, see above)

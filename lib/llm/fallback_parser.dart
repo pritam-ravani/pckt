@@ -36,6 +36,7 @@ class LlmFallbackParser {
     this.batchSize = 8,
     this.maxMessages = 80,
     this.pause = const Duration(milliseconds: 800),
+    this.maxChars = 1800,
   });
 
   final AppDatabase db;
@@ -51,7 +52,7 @@ class LlmFallbackParser {
   static const maxAmountMinor = 5000000000;
 
   /// Long emails are clipped; the transaction details are near the top.
-  static const maxChars = 1800;
+  final int maxChars;
 
   static const systemPrompt = '''
 You read Indian bank, card, UPI and wallet alert messages (SMS or email) that a rule-based parser could not handle.

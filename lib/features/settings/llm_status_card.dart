@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/icons.dart';
 import '../../core/theme/palette.dart';
 import '../../llm/llm_providers.dart';
+import '../../llm/on_device/model_catalog.dart';
 import '../../ui/widgets.dart';
 
 /// Settings card for the bring-your-own LLM connection and its jobs.
@@ -43,8 +44,8 @@ class LlmStatusCard extends ConsumerWidget {
                     Text('Connect your LLM', style: context.text.titleMedium),
                     Text(
                       connected
-                          ? '${config.preset.label} · ${config.model}'
-                          : 'OpenAI-compatible, Claude, Gemini or a model on your computer',
+                          ? '${config.preset.label} · ${ModelCatalog.byId(config.model)?.name ?? config.model}'
+                          : 'Gemma on this phone, or OpenAI-compatible, Claude, Gemini',
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: context.text.bodySmall?.copyWith(color: context.colors.onSurfaceVariant),

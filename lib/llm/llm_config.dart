@@ -2,12 +2,13 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'llm_client.dart';
+import 'on_device/model_catalog.dart';
+import 'on_device/on_device_client.dart';
 import 'providers/anthropic_client.dart';
 import 'providers/gemini_client.dart';
 import 'providers/openai_client.dart';
 
-/// Wire protocol families. [onDevice] is the Phase 5 seam — a local model
-/// running in-process will implement [LlmClient] and plug in here.
+/// Wire protocol families. [onDevice] runs a model inside the app.
 enum LlmProviderKind { openAiCompatible, anthropic, gemini, onDevice }
 
 class LlmPreset {
@@ -112,10 +113,10 @@ abstract final class LlmPresets {
     ),
     LlmPreset(
       id: 'ondevice',
-      label: 'On-device (coming later)',
+      label: 'On this phone (Gemma)',
       kind: LlmProviderKind.onDevice,
       keyRequired: false,
-      available: false,
+      hint: 'Runs a Gemma model inside Pckt. Nothing leaves the phone; works offline after one download.',
     ),
   ];
 
@@ -225,6 +226,11 @@ LlmClient buildLlmClient({
     ),
     LlmProviderKind.anthropic => AnthropicClient(httpClient: httpClient, apiKey: apiKey!, model: model, baseUrl: base),
     LlmProviderKind.gemini => GeminiClient(httpClient: httpClient, apiKey: apiKey!, model: model, baseUrl: base),
-    LlmProviderKind.onDevice => throw const LlmException(LlmErrorKind.notConfigured, 'On-device models come later'),
+    // For on-device, the key slot holds the optional Hugging Face token that
+    // gated Gemma downloads need.
+    LlmProviderKind.onDevice => switch (ModelCatalog.byId(model)) {
+      final m? => OnDeviceClient(model: m, hfToken: apiKey),
+      null => throw const LlmException(LlmErrorKind.notConfigured, 'Pick an on-device model first'),
+    },
   };
 }

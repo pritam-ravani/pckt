@@ -1,13 +1,18 @@
 package com.pckt.pckt
 
 import android.Manifest
+import android.app.ActivityManager
 import android.content.pm.PackageManager
+import android.net.ConnectivityManager
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.StatFs
 import android.provider.Telephony
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import java.io.File
 import java.util.concurrent.Executors
 
 class MainActivity : FlutterActivity() {
@@ -46,6 +51,55 @@ class MainActivity : FlutterActivity() {
                 else -> result.notImplemented()
             }
         }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "pckt/device").setMethodCallHandler { call, result ->
+            when (call.method) {
+                "profile" -> result.success(deviceProfile())
+                // True on mobile data or a metered hotspot: big downloads ask first.
+                "isMetered" -> {
+                    val cm = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
+                    result.success(cm.activeNetwork == null || cm.isActiveNetworkMetered)
+                }
+                // Android 13+: lets the model download show its progress notification.
+                "requestNotifications" -> {
+                    if (Build.VERSION.SDK_INT >= 33 &&
+                        checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+                    ) {
+                        requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), NOTIFY_REQUEST)
+                    }
+                    result.success(null)
+                }
+                else -> result.notImplemented()
+            }
+        }
+    }
+
+    /** What the on-device model picker needs to choose a model that fits. */
+    private fun deviceProfile(): Map<String, Any?> {
+        val am = getSystemService(ACTIVITY_SERVICE) as ActivityManager
+        val mem = ActivityManager.MemoryInfo().also { am.getMemoryInfo(it) }
+        val stat = StatFs(filesDir.absolutePath)
+        val openCl = listOf(
+            "/vendor/lib64/libOpenCL.so",
+            "/system/vendor/lib64/libOpenCL.so",
+            "/system/lib64/libOpenCL.so",
+            // Mali drivers expose OpenCL through the GLES driver.
+            "/vendor/lib64/egl/libGLES_mali.so",
+        ).any { File(it).exists() }
+        return mapOf(
+            "totalRamBytes" to mem.totalMem,
+            "availRamBytes" to mem.availMem,
+            "lowRamDevice" to am.isLowRamDevice,
+            "sdkInt" to Build.VERSION.SDK_INT,
+            "abis" to Build.SUPPORTED_ABIS.toList(),
+            "manufacturer" to Build.MANUFACTURER,
+            "model" to Build.MODEL,
+            "hardware" to Build.HARDWARE,
+            "board" to Build.BOARD,
+            "socManufacturer" to if (Build.VERSION.SDK_INT >= 31) Build.SOC_MANUFACTURER else null,
+            "socModel" to if (Build.VERSION.SDK_INT >= 31) Build.SOC_MODEL else null,
+            "freeStorageBytes" to stat.availableBytes,
+            "hasOpenCl" to openCl,
+        )
     }
 
     private fun hasSmsPermission() =
@@ -94,5 +148,6 @@ class MainActivity : FlutterActivity() {
 
     companion object {
         private const val SMS_REQUEST = 4201
+        private const val NOTIFY_REQUEST = 4202
     }
 }

@@ -60,12 +60,15 @@ abstract final class PhosphorIconsRegular {
   static const chartPie = IconData(0xe158, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
   static const chatText = IconData(0xe17a, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
   static const clockCounterClockwise = IconData(0xe1a0, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
+  static const cpu = IconData(0xe610, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
   static const deviceMobile = IconData(0xe1e0, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
   static const gearSix = IconData(0xe272, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
   static const hardDrives = IconData(0xe2a0, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
   static const house = IconData(0xe2c2, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
+  static const lightning = IconData(0xe2de, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
   static const listBullets = IconData(0xe2f2, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
   static const magnifyingGlass = IconData(0xe30c, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
+  static const memory = IconData(0xe9c4, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
   static const moon = IconData(0xe330, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
   static const notePencil = IconData(0xe34c, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
   static const shieldCheck = IconData(0xe40c, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
@@ -90,7 +93,10 @@ abstract final class PhosphorIconsBold {
   static const chatText = IconData(0xe17a, fontFamily: 'PhosphorBold', fontPackage: 'phosphor_flutter');
   static const check = IconData(0xe182, fontFamily: 'PhosphorBold', fontPackage: 'phosphor_flutter');
   static const checkCircle = IconData(0xe184, fontFamily: 'PhosphorBold', fontPackage: 'phosphor_flutter');
+  static const cloudArrowDown = IconData(0xe1ac, fontFamily: 'PhosphorBold', fontPackage: 'phosphor_flutter');
+  static const cpu = IconData(0xe610, fontFamily: 'PhosphorBold', fontPackage: 'phosphor_flutter');
   static const creditCard = IconData(0xe1d2, fontFamily: 'PhosphorBold', fontPackage: 'phosphor_flutter');
+  static const downloadSimple = IconData(0xe20c, fontFamily: 'PhosphorBold', fontPackage: 'phosphor_flutter');
   static const eye = IconData(0xe220, fontFamily: 'PhosphorBold', fontPackage: 'phosphor_flutter');
   static const eyeSlash = IconData(0xe224, fontFamily: 'PhosphorBold', fontPackage: 'phosphor_flutter');
   static const gitMerge = IconData(0xe280, fontFamily: 'PhosphorBold', fontPackage: 'phosphor_flutter');
@@ -102,9 +108,11 @@ abstract final class PhosphorIconsBold {
   static const listBullets = IconData(0xe2f2, fontFamily: 'PhosphorBold', fontPackage: 'phosphor_flutter');
   static const listMagnifyingGlass = IconData(0xebe0, fontFamily: 'PhosphorBold', fontPackage: 'phosphor_flutter');
   static const magnifyingGlass = IconData(0xe30c, fontFamily: 'PhosphorBold', fontPackage: 'phosphor_flutter');
+  static const memory = IconData(0xe9c4, fontFamily: 'PhosphorBold', fontPackage: 'phosphor_flutter');
   static const minusCircle = IconData(0xe32c, fontFamily: 'PhosphorBold', fontPackage: 'phosphor_flutter');
   static const money = IconData(0xe588, fontFamily: 'PhosphorBold', fontPackage: 'phosphor_flutter');
   static const paperPlaneRight = IconData(0xe396, fontFamily: 'PhosphorBold', fontPackage: 'phosphor_flutter');
+  static const play = IconData(0xe3d0, fontFamily: 'PhosphorBold', fontPackage: 'phosphor_flutter');
   static const plugsConnected = IconData(0xeb5a, fontFamily: 'PhosphorBold', fontPackage: 'phosphor_flutter');
   static const plus = IconData(0xe3d4, fontFamily: 'PhosphorBold', fontPackage: 'phosphor_flutter');
   static const question = IconData(0xe3e8, fontFamily: 'PhosphorBold', fontPackage: 'phosphor_flutter');
@@ -113,4 +121,5 @@ abstract final class PhosphorIconsBold {
   static const sparkle = IconData(0xe6a2, fontFamily: 'PhosphorBold', fontPackage: 'phosphor_flutter');
   static const tag = IconData(0xe478, fontFamily: 'PhosphorBold', fontPackage: 'phosphor_flutter');
   static const wallet = IconData(0xe68a, fontFamily: 'PhosphorBold', fontPackage: 'phosphor_flutter');
+  static const wrench = IconData(0xe5d4, fontFamily: 'PhosphorBold', fontPackage: 'phosphor_flutter');
 }

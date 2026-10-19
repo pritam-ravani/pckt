@@ -7,6 +7,7 @@ import '../../llm/llm_client.dart';
 import '../../llm/llm_config.dart';
 import '../../llm/llm_providers.dart';
 import '../../ui/widgets.dart';
+import 'on_device_panel.dart';
 
 /// Settings → Connect your LLM: provider, endpoint, key, model, and the
 /// privacy switches that decide what may be sent.
@@ -201,104 +202,110 @@ class _LlmSettingsScreenState extends ConsumerState<LlmSettingsScreen> {
             Text(_preset.hint!, style: context.text.bodySmall?.copyWith(color: context.colors.onSurfaceVariant)),
           ],
           const SizedBox(height: 20),
-          const SectionHeader('Connection'),
-          if (showBaseUrl) ...[
-            TextField(
-              controller: _baseUrl,
-              keyboardType: TextInputType.url,
-              autocorrect: false,
-              decoration: const InputDecoration(labelText: 'Base URL', hintText: 'https://…/v1'),
-              onChanged: (_) => setState(() {}),
-            ),
-            if (_insecureRemote)
-              Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Text(
-                  'Plain http:// to a public address sends your key and data unencrypted.',
-                  style: context.text.bodySmall?.copyWith(color: Palette.amber),
-                ),
+          if (_preset.kind == LlmProviderKind.onDevice)
+            const OnDeviceModelPanel()
+          else ...[
+            const SectionHeader('Connection'),
+            if (showBaseUrl) ...[
+              TextField(
+                controller: _baseUrl,
+                keyboardType: TextInputType.url,
+                autocorrect: false,
+                decoration: const InputDecoration(labelText: 'Base URL', hintText: 'https://…/v1'),
+                onChanged: (_) => setState(() {}),
               ),
-            const SizedBox(height: 12),
-          ],
-          TextField(
-            controller: _key,
-            obscureText: _obscure,
-            autocorrect: false,
-            enableSuggestions: false,
-            decoration: InputDecoration(
-              labelText: _preset.keyRequired ? 'API key' : 'API key (optional)',
-              helperText: 'Stored in the Android keystore, never in backups or the database.',
-              suffixIcon: IconButton(
-                onPressed: () => setState(() => _obscure = !_obscure),
-                icon: Icon(_obscure ? PhosphorIconsBold.eye : PhosphorIconsBold.eyeSlash, size: 20),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          LayoutBuilder(
-            builder: (context, box) => DropdownMenu<String>(
-              key: ValueKey('${_preset.id}-${options.length}'),
-              controller: _model,
-              width: box.maxWidth,
-              menuHeight: 320,
-              enableFilter: true,
-              requestFocusOnTap: true,
-              label: const Text('Model'),
-              helperText: _models.isEmpty
-                  ? 'Type a model id, or load the list from the provider'
-                  : '${_models.length} models available — type to filter',
-              errorText: _modelsError,
-              dropdownMenuEntries: [for (final m in options) DropdownMenuEntry(value: m, label: m)],
-              onSelected: (m) => setState(() => _testResult = null),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _loadingModels ? null : _fetchModels,
-                  icon: _loadingModels
-                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(PhosphorIconsBold.arrowsClockwise, size: 18),
-                  label: const Text('Load models'),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _testing ? null : _test,
-                  icon: _testing
-                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(PhosphorIconsBold.plugsConnected, size: 18),
-                  label: const Text('Test'),
-                ),
-              ),
-            ],
-          ),
-          if (_testResult != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 10),
-              child: Row(
-                children: [
-                  Icon(
-                    _testResult!.$1 ? PhosphorIconsBold.checkCircle : PhosphorIconsFill.warningCircle,
-                    size: 18,
-                    color: _testResult!.$1 ? Palette.mint : Palette.coral,
+              if (_insecureRemote)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(
+                    'Plain http:// to a public address sends your key and data unencrypted.',
+                    style: context.text.bodySmall?.copyWith(color: Palette.amber),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(child: Text(_testResult!.$2, style: context.text.bodySmall)),
-                ],
+                ),
+              const SizedBox(height: 12),
+            ],
+            TextField(
+              controller: _key,
+              obscureText: _obscure,
+              autocorrect: false,
+              enableSuggestions: false,
+              decoration: InputDecoration(
+                labelText: _preset.keyRequired ? 'API key' : 'API key (optional)',
+                helperText: 'Stored in the Android keystore, never in backups or the database.',
+                suffixIcon: IconButton(
+                  onPressed: () => setState(() => _obscure = !_obscure),
+                  icon: Icon(_obscure ? PhosphorIconsBold.eye : PhosphorIconsBold.eyeSlash, size: 20),
+                ),
               ),
             ),
-          const SizedBox(height: 14),
-          FilledButton(
-            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-            onPressed: _saving ? null : _save,
-            child: Text(connected ? 'Save changes' : 'Save & connect'),
-          ),
+            const SizedBox(height: 16),
+            LayoutBuilder(
+              builder: (context, box) => DropdownMenu<String>(
+                key: ValueKey('${_preset.id}-${options.length}'),
+                controller: _model,
+                width: box.maxWidth,
+                menuHeight: 320,
+                enableFilter: true,
+                requestFocusOnTap: true,
+                label: const Text('Model'),
+                helperText: _models.isEmpty
+                    ? 'Type a model id, or load the list from the provider'
+                    : '${_models.length} models available — type to filter',
+                errorText: _modelsError,
+                dropdownMenuEntries: [for (final m in options) DropdownMenuEntry(value: m, label: m)],
+                onSelected: (m) => setState(() => _testResult = null),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _loadingModels ? null : _fetchModels,
+                    icon: _loadingModels
+                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(PhosphorIconsBold.arrowsClockwise, size: 18),
+                    label: const Text('Load models'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _testing ? null : _test,
+                    icon: _testing
+                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(PhosphorIconsBold.plugsConnected, size: 18),
+                    label: const Text('Test'),
+                  ),
+                ),
+              ],
+            ),
+            if (_testResult != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: Row(
+                  children: [
+                    Icon(
+                      _testResult!.$1 ? PhosphorIconsBold.checkCircle : PhosphorIconsFill.warningCircle,
+                      size: 18,
+                      color: _testResult!.$1 ? Palette.mint : Palette.coral,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(_testResult!.$2, style: context.text.bodySmall)),
+                  ],
+                ),
+              ),
+            const SizedBox(height: 14),
+            FilledButton(
+              style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+              onPressed: _saving ? null : _save,
+              child: Text(connected ? 'Save changes' : 'Save & connect'),
+            ),
+          ],
           const SizedBox(height: 24),
-          const SectionHeader('Privacy — what may be sent'),
+          SectionHeader(
+            config.presetId == 'ondevice' ? 'AI features — processed on this phone' : 'Privacy — what may be sent',
+          ),
           AppCard(
             padding: const EdgeInsets.symmetric(vertical: 6),
             child: Column(

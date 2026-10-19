@@ -73,6 +73,15 @@ class AssistantController extends Notifier<AssistantState> {
       );
       return;
     }
+    if (client case LlmBudget(supportsTools: false)) {
+      _finish(
+        const ChatEntry(
+          ChatRole.error,
+          'This on-device model can\'t look up your transactions. Switch to Gemma 4 in Settings → Connect your LLM.',
+        ),
+      );
+      return;
+    }
 
     final agent = FinanceAgent(client: client, tools: FinanceTools(ref.read(databaseProvider)));
     try {
