@@ -6,6 +6,7 @@ import 'core/format.dart';
 import 'core/secrets.dart';
 import 'data/db/database.dart';
 import 'ingestion/ingestion_service.dart';
+import 'ingestion/parser/email_parser.dart';
 import 'ingestion/sms/sms_source.dart';
 
 // ------------------------------------------------------------------ infra
@@ -23,7 +24,9 @@ final databaseProvider = Provider<AppDatabase>((ref) {
 /// merchant rules are kept).
 const smsParserVersion = 3;
 
-final ingestionProvider = Provider((ref) => IngestionService(ref.watch(databaseProvider)));
+final ingestionProvider = Provider(
+  (ref) => IngestionService(ref.watch(databaseProvider), parsers: const {SourceKind.email: EmailParser()}),
+);
 final smsSourceProvider = Provider((ref) => SmsSource());
 final secretStoreProvider = Provider((ref) => SecretStore());
 
