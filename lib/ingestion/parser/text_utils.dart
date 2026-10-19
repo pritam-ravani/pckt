@@ -51,12 +51,28 @@ String? merchantFromVpa(String vpa) {
   return titleCase(words);
 }
 
+/// Legal / payment-gateway names banks print → the brand a receipt uses.
+const _brandAliases = <String, String>{
+  'bundl': 'swiggy',
+  'instamart': 'swiggy',
+  'eternal': 'zomato',
+  'grofers': 'blinkit',
+  'kiranakart': 'zepto',
+  'one97': 'paytm',
+  'roppen': 'rapido',
+  'bigtree': 'bookmyshow',
+  'olacabs': 'ola',
+  'amzn': 'amazon',
+};
+
 /// Lower-case alnum tokens, used for fuzzy merchant comparison.
-Set<String> merchantTokens(String? s) => s == null
-    ? <String>{}
-    : s
-          .toLowerCase()
-          .replaceAll(RegExp(r'@.*$'), '')
-          .split(RegExp(r'[^a-z0-9]+'))
-          .where((t) => t.length >= 3 && !RegExp(r'^\d+$').hasMatch(t))
-          .toSet();
+Set<String> merchantTokens(String? s) {
+  if (s == null) return <String>{};
+  final tokens = s
+      .toLowerCase()
+      .replaceAll(RegExp(r'@.*$'), '')
+      .split(RegExp(r'[^a-z0-9]+'))
+      .where((t) => t.length >= 3 && !RegExp(r'^\d+$').hasMatch(t))
+      .toSet();
+  return {...tokens, for (final t in tokens) ?_brandAliases[t]};
+}

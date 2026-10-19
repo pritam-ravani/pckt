@@ -8,6 +8,8 @@ import 'features/activity/activity_screen.dart';
 import 'features/dashboard/dashboard_screen.dart';
 import 'features/insights/insights_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
+import 'data/db/tables.dart';
+import 'features/settings/email_connect_screen.dart';
 import 'features/settings/messages_screen.dart';
 import 'features/settings/settings_screen.dart';
 import 'features/shell/home_shell.dart';
@@ -25,7 +27,12 @@ final _routerProvider = Provider<GoRouter>((ref) {
     refreshListenable: _ProviderListenable(ref, onboardedProvider),
     routes: [
       GoRoute(path: '/welcome', builder: (_, _) => const OnboardingScreen()),
-      GoRoute(path: '/messages', builder: (_, _) => const MessagesScreen()),
+      GoRoute(
+        path: '/messages',
+        builder: (_, s) =>
+            MessagesScreen(source: s.uri.queryParameters['source'] == 'email' ? SourceKind.email : SourceKind.sms),
+      ),
+      GoRoute(path: '/email/connect', builder: (_, _) => const EmailConnectScreen()),
       StatefulShellRoute.indexedStack(
         builder: (_, _, shell) => HomeShell(shell: shell),
         branches: [

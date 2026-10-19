@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/theme/icons.dart';
 
+import '../../ingestion/email/email_sync.dart';
+import '../../ingestion/ingestion_service.dart';
 import '../../providers.dart';
 import '../activity/add_transaction_sheet.dart';
 
@@ -22,13 +24,17 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   @override
   void initState() {
     super.initState();
-    // Pull new SMS whenever the app comes to the foreground.
+    // Pull new SMS (and email) whenever the app comes to the foreground.
     _lifecycle = AppLifecycleListener(onResume: _sync);
     WidgetsBinding.instance.addPostFrameCallback((_) => _sync());
   }
 
-  Future<void> _sync() async {
-    final report = await ref.read(smsSyncProvider.notifier).sync();
+  Future<void> _sync() => Future.wait([
+    ref.read(smsSyncProvider.notifier).sync().then(_announce),
+    ref.read(emailSyncProvider.notifier).syncIfDue().then(_announce),
+  ]);
+
+  void _announce(IngestReport? report) {
     if (!mounted || report == null || report.added + report.merged == 0) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(

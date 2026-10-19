@@ -4,6 +4,7 @@ import '../core/theme/palette.dart';
 import '../data/db/database.dart';
 import 'categorizer.dart';
 import 'dedup/dedup_engine.dart';
+import 'parser/email_senders.dart';
 import 'parser/parsed_txn.dart';
 import 'parser/sms_parser.dart';
 
@@ -86,7 +87,7 @@ class IngestionService {
 
         if (match != null && match.score >= DedupEngine.autoMerge) {
           report.merged++;
-          await _enrich(match.candidate.id, txn);
+          await _enrich(match.candidate.id, txn, input, categorizer);
           await db
               .into(db.rawMessages)
               .insert(
@@ -145,12 +146,39 @@ class IngestionService {
   }
 
   /// Fill gaps on the existing transaction with whatever the new source knows.
-  Future<void> _enrich(int id, ParsedTxn t) async {
+  /// A merchant receipt email names the merchant better than a bank alert
+  /// ("BUNDL TECHNOLOGIES", a VPA, or nothing), so it replaces it and the
+  /// category is re-derived unless the user picked one.
+  Future<void> _enrich(int id, ParsedTxn t, RawInput input, Categorizer categorizer) async {
     final existing = await (db.select(db.transactions)..where((x) => x.id.equals(id))).getSingle();
+    final betterMerchant =
+        t.merchant != null &&
+        t.merchant != existing.merchant &&
+        input.source == SourceKind.email &&
+        EmailSenders.isMerchant(input.sender);
+    final merchant = betterMerchant || existing.merchant == null ? t.merchant : existing.merchant;
+    final recategorize = betterMerchant && !existing.categoryLocked && !existing.isTransfer;
     await (db.update(db.transactions)..where((x) => x.id.equals(id))).write(
       TransactionsCompanion(
         reference: existing.reference == null ? Value(t.reference) : const Value.absent(),
-        merchant: existing.merchant == null ? Value(t.merchant) : const Value.absent(),
+        merchant: merchant != existing.merchant ? Value(merchant) : const Value.absent(),
+        categoryId: recategorize
+            ? Value(
+                categorizer.categorize(
+                      ParsedTxn(
+                        amountMinor: existing.amountMinor,
+                        direction: existing.direction,
+                        occurredAt: existing.occurredAt,
+                        mode: existing.mode,
+                        confidence: 1,
+                        merchant: merchant,
+                        counterparty: existing.counterparty,
+                      ),
+                      input.body,
+                    ) ??
+                    existing.categoryId,
+              )
+            : const Value.absent(),
         counterparty: existing.counterparty == null ? Value(t.counterparty) : const Value.absent(),
         accountHint: existing.accountHint == null ? Value(t.accountHint) : const Value.absent(),
         // A second independent source confirming the payment is good evidence.
