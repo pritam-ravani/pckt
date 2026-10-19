@@ -155,7 +155,10 @@ class AiJobsController extends Notifier<AiJobsState> {
     final prefs = ref.read(prefsProvider);
     final cursor = all ? 0 : prefs.getInt(_cursorKey) ?? 0;
     final job = AiCategorizer(db: ref.read(databaseProvider), client: client);
-    if ((await job.candidates(afterId: cursor)).isEmpty) return null;
+    if ((await job.candidates(afterId: cursor)).isEmpty) {
+      if (all) state = const AiJobsState(lastResult: 'Nothing left in "Other" to categorise');
+      return null;
+    }
     state = const AiJobsState(running: 'Categorising');
     try {
       final report = await job.run(

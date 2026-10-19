@@ -5,9 +5,11 @@ import 'package:go_router/go_router.dart';
 
 import 'core/theme/app_theme.dart';
 import 'features/activity/activity_screen.dart';
+import 'features/assistant/assistant_screen.dart';
 import 'features/dashboard/dashboard_screen.dart';
 import 'features/insights/insights_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
+import 'features/settings/llm_settings_screen.dart';
 import 'features/settings/messages_screen.dart';
 import 'features/settings/settings_screen.dart';
 import 'features/shell/home_shell.dart';
@@ -26,6 +28,7 @@ final _routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(path: '/welcome', builder: (_, _) => const OnboardingScreen()),
       GoRoute(path: '/messages', builder: (_, _) => const MessagesScreen()),
+      GoRoute(path: '/llm', builder: (_, _) => const LlmSettingsScreen()),
       StatefulShellRoute.indexedStack(
         builder: (_, _, shell) => HomeShell(shell: shell),
         branches: [
@@ -42,6 +45,9 @@ final _routerProvider = Provider<GoRouter>((ref) {
           ),
           StatefulShellBranch(
             routes: [GoRoute(path: '/insights', builder: (_, _) => const InsightsScreen())],
+          ),
+          StatefulShellBranch(
+            routes: [GoRoute(path: '/ask', builder: (_, _) => const AssistantScreen())],
           ),
           StatefulShellBranch(
             routes: [GoRoute(path: '/settings', builder: (_, _) => const SettingsScreen())],

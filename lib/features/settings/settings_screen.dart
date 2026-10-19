@@ -9,6 +9,7 @@ import '../../core/theme/palette.dart';
 import '../../data/db/database.dart';
 import '../../providers.dart';
 import '../../ui/widgets.dart';
+import 'llm_status_card.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -38,12 +39,7 @@ class SettingsScreen extends ConsumerWidget {
               subtitle: 'Bank alerts & receipts from email, deduplicated against SMS',
             ),
             const SizedBox(height: 10),
-            const _ComingSoonCard(
-              icon: PhosphorIconsFill.sparkle,
-              color: Palette.violet,
-              title: 'Connect your LLM',
-              subtitle: 'OpenAI-compatible, Claude, Gemini or on-device — categorise, ask, get advice',
-            ),
+            const LlmStatusCard(),
             if (accounts.isNotEmpty) ...[
               const SizedBox(height: 20),
               const SectionHeader('Detected accounts'),
