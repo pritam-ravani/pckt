@@ -6,6 +6,7 @@ import '../../core/theme/icons.dart';
 
 import '../../ingestion/email/email_sync.dart';
 import '../../ingestion/ingestion_service.dart';
+import '../../llm/llm_providers.dart';
 import '../../providers.dart';
 import '../activity/add_transaction_sheet.dart';
 
@@ -56,6 +57,8 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   Widget build(BuildContext context) {
     final index = widget.shell.currentIndex;
     final review = ref.watch(reviewCountProvider).value ?? 0;
+    // Keeps the AI jobs alive so they run after each sync.
+    ref.listen(aiJobsProvider, (_, _) {});
     return Scaffold(
       body: widget.shell,
       floatingActionButton: index <= 1
@@ -91,6 +94,11 @@ class _HomeShellState extends ConsumerState<HomeShell> {
             icon: Icon(PhosphorIconsRegular.chartPie),
             selectedIcon: Icon(PhosphorIconsFill.chartPie),
             label: 'Insights',
+          ),
+          const NavigationDestination(
+            icon: Icon(PhosphorIconsRegular.sparkle),
+            selectedIcon: Icon(PhosphorIconsFill.sparkle),
+            label: 'Ask',
           ),
           const NavigationDestination(
             icon: Icon(PhosphorIconsRegular.gearSix),

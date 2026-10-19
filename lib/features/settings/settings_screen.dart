@@ -11,6 +11,7 @@ import '../../ingestion/email/email_sync.dart';
 import '../../providers.dart';
 import '../../ui/widgets.dart';
 import 'email_source_card.dart';
+import 'llm_status_card.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -35,12 +36,7 @@ class SettingsScreen extends ConsumerWidget {
             const SizedBox(height: 10),
             const EmailSourceCard(),
             const SizedBox(height: 10),
-            const _ComingSoonCard(
-              icon: PhosphorIconsFill.sparkle,
-              color: Palette.violet,
-              title: 'Connect your LLM',
-              subtitle: 'OpenAI-compatible, Claude, Gemini or on-device — categorise, ask, get advice',
-            ),
+            const LlmStatusCard(),
             if (accounts.isNotEmpty) ...[
               const SizedBox(height: 20),
               const SectionHeader('Detected accounts'),
@@ -255,37 +251,4 @@ Future<void> _pickRangeAndConnect(BuildContext context, WidgetRef ref) async {
     ),
   );
   if (months != null) await ref.read(smsSyncProvider.notifier).connect(months: months);
-}
-
-class _ComingSoonCard extends StatelessWidget {
-  const _ComingSoonCard({required this.icon, required this.color, required this.title, required this.subtitle});
-  final IconData icon;
-  final Color color;
-  final String title;
-  final String subtitle;
-
-  @override
-  Widget build(BuildContext context) => AppCard(
-    child: Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(14)),
-          child: Icon(icon, color: color),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: context.text.titleMedium),
-              Text(subtitle, style: context.text.bodySmall?.copyWith(color: context.colors.onSurfaceVariant)),
-            ],
-          ),
-        ),
-        const SizedBox(width: 8),
-        const InfoPill(icon: PhosphorIconsBold.hourglassMedium, label: 'Soon'),
-      ],
-    ),
-  );
 }
