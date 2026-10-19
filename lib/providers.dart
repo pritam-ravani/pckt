@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/format.dart';
+import 'core/secrets.dart';
 import 'data/db/database.dart';
 import 'ingestion/ingestion_service.dart';
 import 'ingestion/sms/sms_source.dart';
@@ -24,6 +25,7 @@ const smsParserVersion = 3;
 
 final ingestionProvider = Provider((ref) => IngestionService(ref.watch(databaseProvider)));
 final smsSourceProvider = Provider((ref) => SmsSource());
+final secretStoreProvider = Provider((ref) => SecretStore());
 
 // --------------------------------------------------------------- settings
 

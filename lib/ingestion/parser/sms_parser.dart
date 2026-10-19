@@ -9,7 +9,7 @@ import 'text_utils.dart';
 /// reminders, failures, promos) and lenient about *how it is phrased*.
 /// Anything that looks financial but cannot be parsed is returned as
 /// [Unparsed] so the LLM fallback can take a look later.
-class SmsParser {
+class SmsParser implements MessageParser {
   const SmsParser();
 
   // ---- exclusion rules, checked in order --------------------------------
@@ -103,6 +103,7 @@ class SmsParser {
     caseSensitive: false,
   );
 
+  @override
   ParseResult parse(RawInput input) {
     final sender = Senders.parse(input.sender);
     final text = normalizeSpace(input.body);

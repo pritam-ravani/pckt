@@ -17,11 +17,17 @@ class IngestReport {
 /// Source-agnostic pipeline: raw message → parse → dedup → categorise → store.
 /// SMS, email and anything else just produce [RawInput]s.
 class IngestionService {
-  IngestionService(this.db, {this.parser = const SmsParser(), this.dedup = const DedupEngine()});
+  IngestionService(this.db, {Map<SourceKind, MessageParser> parsers = const {}, this.dedup = const DedupEngine()})
+    : parsers = {SourceKind.sms: const SmsParser(), ...parsers};
 
   final AppDatabase db;
-  final SmsParser parser;
+
+  /// Parser per source. Sources without their own parser fall back to SMS
+  /// rules, which also read most plain-text bank alert emails.
+  final Map<SourceKind, MessageParser> parsers;
   final DedupEngine dedup;
+
+  MessageParser _parserFor(SourceKind s) => parsers[s] ?? parsers[SourceKind.sms]!;
 
   Future<IngestReport> ingest(List<RawInput> inputs) async {
     final report = IngestReport();
@@ -65,7 +71,7 @@ class IngestionService {
           mergeScore: Value(score),
         );
 
-    switch (parser.parse(input)) {
+    switch (_parserFor(input.source).parse(input)) {
       case Ignored(:final reason):
         report.ignored++;
         await db.into(db.rawMessages).insert(raw(ParseStatus.ignored, reason: reason), mode: InsertMode.insertOrIgnore);

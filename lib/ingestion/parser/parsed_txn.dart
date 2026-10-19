@@ -58,6 +58,12 @@ class ParsedTxn {
       'acct: $accountHint, ref: $reference, mode: ${mode.name}, inst: $institution, conf: $confidence)';
 }
 
+/// Turns one raw message into a [ParseResult]. One implementation per source
+/// format (SMS, email, …), registered in [IngestionService.parsers].
+abstract interface class MessageParser {
+  ParseResult parse(RawInput input);
+}
+
 sealed class ParseResult {
   const ParseResult();
 }
