@@ -4,7 +4,7 @@ Automatic personal finance tracker for India. Reads bank / UPI / card alerts
 from SMS and email, deduplicates them, categorises every transaction and
 lets you plug in your own LLM to read odd messages, fix categories and answer questions.
 
-Local-first: all data lives in an on-device SQLite database. Nothing is uploaded
+Local-first: all data lives in an on-device, encrypted (SQLCipher) database. Nothing is uploaded
 unless you connect an LLM and switch on a feature that uses it (see *Privacy*).
 
 ## Run
@@ -162,6 +162,93 @@ model that fits (`lib/llm/on_device/model_catalog.dart`):
   enabling them means `qualcomm_npu: true` in pubspec (Qualcomm's licence, +83 MB).
 - Measured on a Galaxy F23 (6 GB, Snapdragon 750G): Gemma 4 E2B loads on the GPU and calls tools,
   but memory is tight and a multi-step Ask answer takes minutes.
+
+### Keeping it responsive (`lib/llm/on_device/`)
+
+- **Warm model.** The loaded model stays in memory between questions (flutter_edge_ai caches it per
+  spec + parameters; we always pass the same ones) and is unloaded after 3 minutes unused, on
+  Android memory pressure, or when the app is torn down. Only the first question pays the load.
+- **Conversation reuse.** Each agent step used to open a new LiteRT conversation and replay the
+  whole transcript (system prompt, tool schemas, earlier turns) as one prompt. Now the conversation
+  of the previous step is kept, and when the next request extends it only the new messages — usually
+  just the tool results — are fed in, so the phone prefills a few hundred tokens instead of the whole
+  history. A follow-up question in the same chat continues the same conversation too.
+- **Smaller requests.** Small-context clients (`LlmBudget`) get tool results compacted to ≤ 10 rows /
+  ~2.8 k chars (raw numbers that have a `*_formatted` twin dropped, nulls dropped), a 1,024-token
+  output cap and at most 4 tool steps (`lib/llm/agent/tool_result_budget.dart`).
+- **Streaming.** The Ask tab shows the answer as the model writes it, and says when the model is
+  still loading.
+- **Ask first.** One generation runs at a time; Ask requests jump the queue and stop a running
+  background batch (`OnDeviceScheduler`). Background AI (categorising, reading unreadable messages)
+  is **off by default** on-device; when switched on it runs at most every 6 hours (30 minutes while
+  charging), 3 batches per run, only while the app is in front and Ask is idle, and resumes later if
+  interrupted.
+- **Timeouts** depend on the model size and the job: e.g. ~3.5 min per Ask turn and ~7 min per batch
+  for Gemma 4 E2B; a timed-out Ask turn says so plainly.
+- **Measuring.** Every turn logs one line tagged `[pckt-ondevice]` (`adb logcat -s flutter`):
+  queue wait, load time (warm or cold), new vs reused conversation, prefill (time to first token),
+  decode time, output size and total.
+
+## Security
+
+- **Encrypted database.** `pckt.sqlite` is a SQLCipher 4 database (AES-256). `package:sqlite3` bundles
+  the SQLCipher build instead of SQLite through `hooks: user_defines: sqlite3: source: sqlcipher` in
+  `pubspec.yaml` (it also applies to `flutter test` on the desktop VM). A random 256-bit key is created
+  on first run and kept in the Android keystore via `flutter_secure_storage`; it is used as a raw key,
+  so opening costs no key derivation (`lib/data/db/db_encryption.dart`).
+- **Upgrading from a plaintext install** happens once, on the first open: the plaintext file is
+  exported into `pckt.sqlite.enc-tmp` with `sqlcipher_export`, per-table row counts, `user_version` and
+  integrity checks are compared, the files are swapped by rename, the result is verified again, and only
+  then is the plaintext copy (`pckt.sqlite.plain-bak`) deleted. Any failure keeps the app on the
+  plaintext database and it retries on the next start. Every step logs with `[pckt-db]`. If the key is
+  ever lost (keystore wiped) the unreadable file is kept aside as `pckt.sqlite.unreadable-<time>` and a
+  new database is started.
+- **No backups.** Android cloud backup and device-to-device transfer are disabled — the data and the
+  key both stay on the phone (use the app's own export to move data).
+- **App lock** (Settings → Security, off by default): fingerprint / face / screen lock on a cold start
+  and after more than 2 minutes in the background. Turning it on requires one successful unlock; if the
+  phone's screen lock is later removed, the app lock switches itself off instead of locking you out.
+- **Hide in recent apps** sets `FLAG_SECURE` (blank app-switcher thumbnail, no screenshots), applied
+  natively before the first frame.
+
+## Release builds
+
+```sh
+flutter build apk --release      # R8 minify + resource shrinking (android/app/proguard-rules.pro)
+```
+
+Without `android/key.properties` the release APK is signed with the debug key, which is fine for
+sideloading. For a proper upload key (keep it safe and never commit it — `*.jks` and
+`key.properties` are gitignored):
+
+```sh
+keytool -genkey -v -keystore ~/pckt-upload.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+```
+
+then create `android/key.properties`:
+
+```properties
+storePassword=<store password>
+keyPassword=<key password>
+keyAlias=upload
+storeFile=C:/Users/<you>/pckt-upload.jks
+```
+
+`storeFile` is resolved relative to `android/app/` unless absolute. Note that an APK signed with a new
+key can't be installed over one signed with the debug key — uninstall first (which deletes the data,
+so export it first).
+
+### Icon and splash
+
+The mark — a white "P" whose bowl is a pocket holding a mint coin, on the violet brand gradient — is
+defined once in `tool/gen_brand_assets.js` (`node tool/gen_brand_assets.js`, no npm packages), which
+writes the SVG sources in `assets/branding/`, the Android adaptive icon (vector foreground, gradient
+background, `<monochrome>` layer for Android 13+ themed icons), the notification small icon
+`@drawable/ic_stat_pckt` (white on transparent, kept through resource shrinking by
+`res/raw/keep.xml`), legacy PNGs, the splash images, the iOS AppIcon (default, dark and tinted iOS 18
+appearances) and previews on light and dark home screens in `assets/branding/previews/`. The splash is
+the icon disc on paper in light mode and on ink in dark mode (Android 12+ system splash and the older
+launch window; iOS uses the `LaunchBackground` named colour).
 
 ## Roadmap
 

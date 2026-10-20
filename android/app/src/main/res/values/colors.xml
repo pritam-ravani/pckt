@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Light mode splash: Palette.paper (dark mode: values-night). -->
+    <color name="splash_background">#F6F6F2</color>
+    <bool name="light_system_bars">true</bool>
+</resources>

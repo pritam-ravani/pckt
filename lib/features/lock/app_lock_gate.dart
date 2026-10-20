@@ -94,11 +94,9 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                   width: 112,
                   height: 112,
                   decoration: BoxDecoration(
-                    color: Palette.inkRaised,
                     borderRadius: BorderRadius.circular(32),
-                    border: Border.all(color: Palette.inkLine),
                     boxShadow: [
-                      BoxShadow(color: Palette.violet.withValues(alpha: 0.25), blurRadius: 40, spreadRadius: 2),
+                      BoxShadow(color: Palette.violet.withValues(alpha: 0.35), blurRadius: 48, spreadRadius: 2),
                     ],
                   ),
                   child: const BrandMark(size: 112),
