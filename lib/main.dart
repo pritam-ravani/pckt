@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app.dart';
+import 'llm/on_device/on_device_client.dart';
 import 'providers.dart';
 
 Future<void> main() async {
@@ -25,6 +26,9 @@ Future<void> _initOnDeviceAi() async {
   if (!Platform.isAndroid && !Platform.isIOS) return;
   try {
     await FlutterEdgeAi.initialize(inferenceEngines: [const LiteRtLmEngine()]);
+    // Keeps a loaded model warm between questions; frees it when idle or on
+    // memory pressure.
+    OnDeviceClient.runtime.attach();
     // Model downloads start only from Settings, so a download WorkManager
     // revived after the app was killed is an orphan: stop it before it
     // quietly continues (possibly on mobile data).

@@ -29,6 +29,20 @@ abstract interface class LlmBudget {
   bool get supportsTools;
 }
 
+/// Implemented by clients that can report an answer while it is generated
+/// (on-device models, where an answer takes tens of seconds). [onText] gets
+/// the text so far; a turn that ends in tool calls may have reported some
+/// text first, which callers should discard.
+abstract interface class LlmStreamingClient {
+  Future<LlmResponse> chatStreaming({
+    String? system,
+    required List<LlmMessage> messages,
+    List<LlmTool> tools = const [],
+    int maxTokens = 4096,
+    required void Function(String textSoFar) onText,
+  });
+}
+
 // ------------------------------------------------------------------ messages
 
 sealed class LlmMessage {

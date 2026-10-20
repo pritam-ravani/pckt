@@ -169,6 +169,7 @@ class _LlmSettingsScreenState extends ConsumerState<LlmSettingsScreen> {
     final connected = config.isConfigured;
     final options = {..._models, ..._preset.suggestedModels}.toList();
     final showBaseUrl = _preset.kind == LlmProviderKind.openAiCompatible;
+    final onDevice = config.presetId == 'ondevice';
 
     return Scaffold(
       appBar: AppBar(title: const Text('Connect your LLM')),
@@ -315,9 +316,13 @@ class _LlmSettingsScreenState extends ConsumerState<LlmSettingsScreen> {
                   onChanged: (v) => cfg.change((c) => c.copyWith(aiCategorise: v)),
                   secondary: const Icon(PhosphorIconsRegular.tag),
                   title: const Text('AI categorisation'),
-                  subtitle: const Text(
-                    'For transactions left as "Other": sends merchant, UPI handle, amount, date and payment mode. '
-                    'Never message text or balances.',
+                  subtitle: Text(
+                    onDevice
+                        ? 'Suggests categories for transactions left as "Other". Runs in the background a few at a '
+                              'time (about every 6 hours, more often while charging) and pauses whenever you ask '
+                              'something. Slow on phones, so it starts off.'
+                        : 'For transactions left as "Other": sends merchant, UPI handle, amount, date and payment '
+                              'mode. Never message text or balances.',
                   ),
                 ),
                 SwitchListTile(
@@ -325,9 +330,13 @@ class _LlmSettingsScreenState extends ConsumerState<LlmSettingsScreen> {
                   onChanged: (v) => cfg.change((c) => c.copyWith(aiReadUnparsed: v)),
                   secondary: const Icon(PhosphorIconsRegular.chatText),
                   title: const Text('AI reading of unreadable messages'),
-                  subtitle: const Text(
-                    'Sends the full text of bank messages our rules couldn\'t read. These can include account '
-                    'digits, balances and names. Off by default.',
+                  subtitle: Text(
+                    onDevice
+                        ? 'Reads bank messages our rules couldn\'t, on this phone. Takes a minute or more per '
+                              'message on most phones, so it runs in the background a couple at a time and yields '
+                              'to Ask. Off by default.'
+                        : 'Sends the full text of bank messages our rules couldn\'t read. These can include account '
+                              'digits, balances and names. Off by default.',
                   ),
                 ),
                 SwitchListTile(

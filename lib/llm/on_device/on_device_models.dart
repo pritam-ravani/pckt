@@ -10,6 +10,7 @@ import '../llm_config.dart';
 import '../llm_providers.dart';
 import 'device_profile.dart';
 import 'model_catalog.dart';
+import 'on_device_client.dart';
 
 class OnDeviceState {
   const OnDeviceState({
@@ -199,22 +200,19 @@ class OnDeviceModels extends Notifier<OnDeviceState> {
             presetId: 'ondevice',
             model: m.id,
             baseUrl: '',
-            // Nothing leaves the phone, so reading unparsed messages is safe
-            // to enable by default here (it's off by default for cloud).
-            aiReadUnparsed: cfg.presetId == 'ondevice' ? cfg.aiReadUnparsed : true,
+            // Background AI is slow on a phone (a minute or more per batch)
+            // and competes with Ask for the model, so both jobs start off
+            // when switching to on-device; the user can turn them on.
+            aiReadUnparsed: cfg.presetId == 'ondevice' ? cfg.aiReadUnparsed : false,
+            aiCategorise: cfg.presetId == 'ondevice' ? cfg.aiCategorise : false,
           ),
         );
   }
 
   Future<void> delete(OnDeviceModel m) async {
-    try {
-      if (FlutterEdgeAi.hasActiveModel()) {
-        final active = await FlutterEdgeAi.getActiveModel();
-        await active.close();
-      }
-    } catch (_) {
-      // Nothing loaded.
-    }
+    // Free the loaded model first. (getActiveModel() here would *load* it
+    // with default parameters just to close it.)
+    await OnDeviceClient.runtime.unload('model deleted', force: true);
     await FlutterEdgeAi.uninstallModel(m.file);
     if (m.file.startsWith(FlutterEdgeAi.activeModelSpec?.name ?? '\u0000')) {
       await FlutterEdgeAi.clearActiveInferenceIdentity();
