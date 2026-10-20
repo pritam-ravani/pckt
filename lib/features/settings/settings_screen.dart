@@ -10,6 +10,7 @@ import '../../data/db/database.dart';
 import '../../ingestion/email/email_sync.dart';
 import '../../providers.dart';
 import '../../ui/widgets.dart';
+import '../budgets/budget_providers.dart';
 import 'email_source_card.dart';
 import 'llm_status_card.dart';
 
@@ -37,26 +38,47 @@ class SettingsScreen extends ConsumerWidget {
             const EmailSourceCard(),
             const SizedBox(height: 10),
             const LlmStatusCard(),
-            if (accounts.isNotEmpty) ...[
-              const SizedBox(height: 20),
-              const SectionHeader('Detected accounts'),
-              AppCard(
-                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
-                child: Column(
-                  children: [
-                    for (final a in accounts)
-                      ListTile(
-                        leading: Icon(
-                          a.kind == AccountKind.creditCard ? PhosphorIconsFill.creditCard : PhosphorIconsFill.bank,
-                          color: Color(a.color),
-                        ),
-                        title: Text(a.name),
-                        trailing: Text('••${a.last4 ?? ''}', style: context.text.labelLarge),
-                      ),
-                  ],
-                ),
+            const SizedBox(height: 20),
+            const SectionHeader('Money'),
+            AppCard(
+              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+              child: Column(
+                children: [
+                  ListTile(
+                    leading: const Icon(PhosphorIconsRegular.target),
+                    title: const Text('Budgets'),
+                    subtitle: const Text('Monthly and per-category limits'),
+                    trailing: const Icon(PhosphorIconsBold.caretRight, size: 16),
+                    onTap: () => context.push('/budgets'),
+                  ),
+                  SwitchListTile(
+                    secondary: const Icon(PhosphorIconsRegular.bellRinging),
+                    title: const Text('Budget alerts'),
+                    subtitle: const Text('Notify at 80% and 100%'),
+                    value: ref.watch(budgetAlertsProvider),
+                    onChanged: (v) => ref.read(budgetAlertsProvider.notifier).setEnabled(v),
+                  ),
+                  ListTile(
+                    leading: const Icon(PhosphorIconsRegular.bank),
+                    title: const Text('Accounts'),
+                    subtitle: Text(
+                      accounts.isEmpty
+                          ? 'Rename, archive or add cash'
+                          : '${accounts.length} account${accounts.length == 1 ? '' : 's'}',
+                    ),
+                    trailing: const Icon(PhosphorIconsBold.caretRight, size: 16),
+                    onTap: () => context.push('/settings/accounts'),
+                  ),
+                  ListTile(
+                    leading: const Icon(PhosphorIconsRegular.tag),
+                    title: const Text('Categories'),
+                    subtitle: const Text('Add, rename, reorder or delete'),
+                    trailing: const Icon(PhosphorIconsBold.caretRight, size: 16),
+                    onTap: () => context.push('/settings/categories'),
+                  ),
+                ],
               ),
-            ],
+            ),
             const SizedBox(height: 20),
             const SectionHeader('Appearance'),
             SegmentedButton<ThemeMode>(
