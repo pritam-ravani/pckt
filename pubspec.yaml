@@ -53,6 +53,9 @@ dependencies:
   flutter_edge_ai: ^2.4.1
   flutter_edge_ai_litertlm: ^1.15.0
   background_downloader: ^9.6.4 # used only to clean up orphaned model downloads
+  sqlite3: ^3.5.2 # SQLCipher build, selected under hooks.user_defines below
+  path: ^1.9.1
+  local_auth: ^3.0.2
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -65,6 +68,14 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   drift_dev: ^2.35.1
   build_runner: ^2.16.2
+
+# Native build options for package:sqlite3 (hooks). `sqlcipher` bundles the
+# SQLCipher community build instead of plain SQLite on every platform, so
+# the database can be encrypted at rest (lib/data/db/db_encryption.dart).
+hooks:
+  user_defines:
+    sqlite3:
+      source: sqlcipher
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
