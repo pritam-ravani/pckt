@@ -88,6 +88,7 @@ abstract final class Senders {
     'SIBSMS': 'South Indian Bank',
     'CSBBNK': 'CSB Bank',
     'DCBBNK': 'DCB Bank',
+    'IMEIND': 'IME India',
   };
 
   static String? institutionFor(String header) {

@@ -22,7 +22,7 @@ final databaseProvider = Provider<AppDatabase>((ref) {
 /// Bump whenever parser/categoriser changes should apply to already-imported
 /// SMS. The next sync re-parses everything (manual entries and learned
 /// merchant rules are kept).
-const smsParserVersion = 3;
+const smsParserVersion = 4;
 
 final ingestionProvider = Provider(
   (ref) => IngestionService(ref.watch(databaseProvider), parsers: const {SourceKind.email: EmailParser()}),

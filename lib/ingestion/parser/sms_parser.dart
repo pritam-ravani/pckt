@@ -95,6 +95,8 @@ class SmsParser implements MessageParser {
       r'\bby\s+(?!neft|imps|rtgs|upi|transfer|cash|cheque)(.{2,40}?)(?=\s+(?:on|via|ref|upi|using)\b|[,(\n]|\.(?=\s|$)|$)',
       caseSensitive: false,
     ),
+    // Refunds: "...refunded to your card for transaction dated Sep 06 at SWIGGY".
+    RegExp(r'\bat\s+(.{2,40}?)(?=\s+(?:on|via|ref|using|txn|avl|for)\b|[,(\n]|\.(?=\s|$)|$)', caseSensitive: false),
   ];
 
   static final _partyNoise = RegExp(
@@ -142,7 +144,7 @@ class SmsParser implements MessageParser {
     final mode = cashDeposit ? PaymentMode.cash : _mode(lower, vpa);
     var (merchant, counterparty, p2p) = cashDeposit
         ? ('Cash Deposit', null, false)
-        : _party(text, lower, direction, vpa);
+        : _party(text, lower, direction, vpa, sender);
     // Card and ATM rails only ever pay merchants.
     if (mode == PaymentMode.card || mode == PaymentMode.atm) p2p = false;
 
@@ -245,12 +247,17 @@ class SmsParser implements MessageParser {
   }
 
   /// Returns (merchant display name, raw counterparty, isP2P).
-  static (String?, String?, bool) _party(String text, String l, TxnDirection dir, String? vpa) {
-    final p2p = RegExp(r'upi/p2a/').hasMatch(l);
+  static (String?, String?, bool) _party(String text, String l, TxnDirection dir, String? vpa, SenderInfo sender) {
+    final p2a = RegExp(r'upi/p2a/').hasMatch(l);
+    // Remittance services (IME India etc.) only ever send money to people.
+    final remittance = sender.header.contains('IMEIND') || RegExp(r'\bime india\b|\bremittance\b').hasMatch(l);
+    // Bank-to-bank rails where the counterparty is often an individual whose
+    // name banks print as one concatenated word ("-ANCHALDEVIUCHITRAM-").
+    final personRail = p2a || remittance || RegExp(r'\b(imps|neft|rtgs)\b').hasMatch(l);
     final path = _upiPath.firstMatch(text);
     if (path != null) {
       final name = path.group(2)!;
-      return (cleanMerchant(name), vpa ?? name.trim(), p2p);
+      return (cleanMerchant(name), vpa ?? name.trim(), p2a);
     }
 
     final patterns = dir == TxnDirection.debit ? _debitParty : _creditParty;
@@ -260,23 +267,28 @@ class SmsParser implements MessageParser {
         if (_partyNoise.hasMatch(raw)) continue;
         final cleaned = cleanMerchant(raw);
         if (cleaned == null) continue;
-        return (cleaned, raw, _looksLikePerson(raw, vpa));
+        return (cleaned, raw, remittance || _looksLikePerson(raw, vpa, personRail: personRail));
       }
     }
-    if (vpa != null) return (merchantFromVpa(vpa), vpa, false);
-    return (null, null, false);
+    if (vpa != null) return (merchantFromVpa(vpa), vpa, remittance);
+    return (null, null, remittance);
   }
 
-  static bool _looksLikePerson(String raw, String? vpa) {
+  static final _businessWords = RegExp(
+    r'(pvt|ltd|limited|llp|store|services|india|technologies|retail|foods|mart|enterprises|traders|corp|company|'
+    r'agency|agencies|industries|solutions|bank|finance|financial|insurance|securities|capital|clearing|railway|'
+    r'hospital|medical|pharma|school|college|trust|society|hotel|restaurant|motors|electronics|jewel)',
+    caseSensitive: false,
+  );
+
+  static bool _looksLikePerson(String raw, String? vpa, {required bool personRail}) {
     if (vpa != null && RegExp(r'^\d{10}@').hasMatch(vpa)) return true;
     final words = raw.trim().split(RegExp(r'\s+'));
-    return words.length >= 2 &&
-        words.length <= 4 &&
-        words.every((w) => RegExp(r'^[A-Za-z.]+$').hasMatch(w)) &&
-        !RegExp(
-          r'(pvt|ltd|limited|store|services|india|technologies|retail|foods|mart|enterprises)',
-          caseSensitive: false,
-        ).hasMatch(raw);
+    if (!words.every((w) => RegExp(r'^[A-Za-z.]+$').hasMatch(w))) return false;
+    if (_businessWords.hasMatch(raw)) return false;
+    if (words.length >= 2 && words.length <= 4) return true;
+    // IMPS / NEFT / P2A print individuals as a single concatenated word.
+    return personRail && words.length == 1 && words.first.length >= 4;
   }
 
   static bool _transferHint(String l, TxnDirection dir) =>

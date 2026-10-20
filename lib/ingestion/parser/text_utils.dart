@@ -22,16 +22,58 @@ final _merchantJunk = RegExp(
   caseSensitive: false,
 );
 
+const _months =
+    r'jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sept?(?:ember)?|'
+    r'oct(?:ober)?|nov(?:ember)?|dec(?:ember)?';
+const _weekdays =
+    r'mon(?:day)?|tue(?:s(?:day)?)?|wed(?:nesday)?|thu(?:r(?:s(?:day)?)?)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?';
+
+/// Dates and times as banks print them: "Sep 06", "06-Sep-26", "6th Sept, 2026",
+/// "12Oct26", "06/09/26", "2026-10-12", "20:11:07", "08:01 PM".
+final _dateLike = RegExp(
+  r'\b\d{1,2}(?:st|nd|rd|th)?[-/ .,]*(?:' +
+      _months +
+      r')\b\.?(?:[-/ ,.]*\d{2,4}\b)?' +
+      r'|\b(?:' +
+      _months +
+      r')\b\.?[-/ ]*\d{1,2}(?:st|nd|rd|th)?\b(?:,?[-/ ]*\d{2,4}\b)?' +
+      r'|\b\d{1,2}(?:' +
+      _months +
+      r')\d{2,4}\b' +
+      r'|\b\d{1,4}[-/.]\d{1,2}(?:[-/.]\d{2,4})?\b' +
+      r'|\b\d{1,2}:\d{2}(?::\d{2})?(?:\s*[ap]\.?m\b\.?)?',
+  caseSensitive: false,
+);
+
+/// A candidate that is nothing but calendar words / filler once dates are gone.
+final _calendarOnly = RegExp(
+  r'^(?:(?:' +
+      _months +
+      r'|' +
+      _weekdays +
+      r'|on|dated?|date|txn|transaction|the|of|for|refund(?:ed)?|reversal|reversed|am|pm|ist|hrs)\b[\s.,\-]*)+$',
+  caseSensitive: false,
+);
+
+/// True when [s] is a date, time or month/weekday name rather than a name.
+bool isDateLike(String s) {
+  final stripped = s.replaceAll(_dateLike, ' ').replaceAll(RegExp(r'[\s.,:/\-]+'), ' ').trim();
+  return stripped.isEmpty || _calendarOnly.hasMatch(stripped);
+}
+
 /// Turns raw counterparty strings into a short display name.
-/// Returns null for things that are clearly not names (numbers, ids).
+/// Returns null for things that are clearly not names (numbers, ids, dates).
 String? cleanMerchant(String raw) {
   var s = raw.trim();
   if (s.contains('@')) return merchantFromVpa(s.split(RegExp(r'\s')).firstWhere((w) => w.contains('@')));
+  if (isDateLike(s)) return null;
   s = s
+      .replaceAll(_dateLike, ' ')
       .replaceAll(RegExp(r'[^A-Za-z0-9&\x27 .\-]'), ' ')
       .replaceAll(_merchantJunk, ' ')
       .replaceAll(RegExp(r'\s+'), ' ')
       .replaceAll(RegExp(r'^[\s.\-]+|[\s.\-]+$'), '')
+      .replaceAll(RegExp(r'\s+(?:on|dated?|dt)$', caseSensitive: false), '')
       .trim();
   if (s.length < 2) return null;
   if (RegExp(r'^[\dXx*\s]+$').hasMatch(s)) return null;
