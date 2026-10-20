@@ -10,6 +10,7 @@ import '../../data/db/database.dart';
 import '../../ingestion/email/email_sync.dart';
 import '../../providers.dart';
 import '../../ui/widgets.dart';
+import 'data_section.dart';
 import 'email_source_card.dart';
 import 'llm_status_card.dart';
 
@@ -83,6 +84,7 @@ class SettingsScreen extends ConsumerWidget {
                     title: const Text('Stored only on this phone'),
                     subtitle: const Text('Messages are parsed on-device. Nothing is uploaded.'),
                   ),
+                  const DataExportTiles(),
                   ListTile(
                     leading: const Icon(PhosphorIconsRegular.trash, color: Palette.coral),
                     title: const Text('Reset imported data'),

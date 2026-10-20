@@ -55,6 +55,7 @@ abstract final class PhosphorIconsFill {
 }
 
 abstract final class PhosphorIconsRegular {
+  static const archive = IconData(0xe00c, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
   static const arrowsLeftRight = IconData(0xe0a0, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
   static const calendarBlank = IconData(0xe10a, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
   static const chartPie = IconData(0xe158, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
@@ -62,6 +63,8 @@ abstract final class PhosphorIconsRegular {
   static const clockCounterClockwise = IconData(0xe1a0, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
   static const cpu = IconData(0xe610, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
   static const deviceMobile = IconData(0xe1e0, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
+  static const downloadSimple = IconData(0xe20c, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
+  static const fileCsv = IconData(0xeb1c, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
   static const gearSix = IconData(0xe272, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
   static const hardDrives = IconData(0xe2a0, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
   static const house = IconData(0xe2c2, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
@@ -71,6 +74,7 @@ abstract final class PhosphorIconsRegular {
   static const memory = IconData(0xe9c4, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
   static const moon = IconData(0xe330, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
   static const notePencil = IconData(0xe34c, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
+  static const shareNetwork = IconData(0xe408, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
   static const shieldCheck = IconData(0xe40c, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
   static const slidersHorizontal = IconData(0xe434, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
   static const sparkle = IconData(0xe6a2, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
