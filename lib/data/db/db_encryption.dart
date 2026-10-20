@@ -300,6 +300,12 @@ typedef BlockingRunner = Future<T> Function<T>(T Function() work);
 
 Future<T> _isolateRunner<T>(T Function() work) => Isolate.run(work);
 
+// Closures built here capture only their arguments, so they can be sent to
+// the helper isolate (a closure made inside prepareDatabase would drag its
+// whole scope, keystore plugin included, along).
+bool Function() _canOpenTask(String path, String key) => () => canOpenWithKey(path, key);
+MigrationResult Function() _migrateTask(String path, String key) => () => migratePlaintextDb(path, key);
+
 /// Decides how to open [path]: creates / validates the key and migrates a
 /// plaintext file. Never throws for encryption problems — the worst case is
 /// the plaintext database with a log line.
@@ -335,7 +341,7 @@ Future<DbOpenPlan> prepareDatabase(String path, SecretStore secrets, {BlockingRu
       return DbOpenPlan(path, key, DbSecurityStatus(encrypted: true, detail: 'Encrypted', cipherVersion: cipher));
 
     case DbFileKind.encrypted:
-      if (key != null && await run(() => canOpenWithKey(path, key!))) {
+      if (key != null && await run(_canOpenTask(path, key))) {
         _deleteQuietly(_tmpPath(path));
         if (File(_backupPath(path)).existsSync()) {
           dbLog('open: removing plaintext backup from an earlier verified migration');
@@ -369,7 +375,7 @@ Future<DbOpenPlan> prepareDatabase(String path, SecretStore secrets, {BlockingRu
         return DbOpenPlan(path, null, const DbSecurityStatus(encrypted: false, detail: 'Keystore unavailable'));
       }
       final k = key;
-      final result = await run(() => migratePlaintextDb(path, k));
+      final result = await run(_migrateTask(path, k));
       if (!result.ok) {
         return DbOpenPlan(
           path,

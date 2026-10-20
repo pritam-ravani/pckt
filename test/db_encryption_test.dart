@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:math';
 
+import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pckt/core/secrets.dart';
 import 'package:pckt/data/db/database.dart';
@@ -215,5 +216,25 @@ void main() {
     final reopened = AppDatabase(openAppDatabase(secrets: store, directory: () async => dir.path));
     expect(await reopened.select(reopened.transactions).get(), hasLength(1));
     await reopened.close();
+  });
+
+  test('a real plaintext app database migrates on open (helper isolate) and keeps its data', () async {
+    final plain = AppDatabase(NativeDatabase(File(path)));
+    for (var i = 0; i < 25; i++) {
+      await plain.addManual(amountMinor: 100 + i, direction: TxnDirection.debit, at: DateTime(2026, 10, 1), merchant: 'M$i');
+    }
+    final cats = (await plain.allCategories()).length;
+    await plain.close();
+    expect(detectDbFile(path), DbFileKind.plaintext);
+
+    final db = AppDatabase(openAppDatabase(secrets: MemorySecretStore(), directory: () async => dir.path));
+    expect(await db.select(db.transactions).get(), hasLength(25));
+    expect(await db.select(db.rawMessages).get(), hasLength(25));
+    expect(await db.allCategories(), hasLength(cats));
+    await db.close();
+    expect(detectDbFile(path), DbFileKind.encrypted);
+    expect(DbEncryption.status.value.detail, contains('migrated'));
+    final leftovers = dir.listSync().map((f) => f.path).where((p) => p.contains('plain-bak') || p.contains('enc-tmp'));
+    expect(leftovers, isEmpty);
   });
 }
