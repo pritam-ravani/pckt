@@ -7,7 +7,12 @@ import 'parser/parsed_txn.dart';
 /// built-in keyword lists → fallback. The LLM agent can override later.
 class Categorizer {
   Categorizer(List<Category> categories, List<MerchantRule> rules)
-    : _byName = {for (final c in categories) c.name: c},
+    // Seed names win so built-in keywords survive a user rename.
+    : _byName = {
+        for (final c in categories) c.name: c,
+        for (final c in categories)
+          if (c.seedName != null) c.seedName!: c,
+      },
       _rules = {for (final r in rules) r.pattern: r.categoryId},
       _keywords = [
         for (final seed in defaultCategories)
