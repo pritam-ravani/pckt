@@ -7,6 +7,7 @@ import '../../llm/agent/finance_agent.dart';
 import '../../llm/agent/finance_tools.dart';
 import '../../llm/llm_client.dart';
 import '../../llm/llm_providers.dart';
+import '../../llm/on_device/on_device_client.dart';
 import '../../providers.dart';
 
 enum ChatRole { user, assistant, error }
@@ -19,7 +20,7 @@ class ChatEntry {
 }
 
 class AssistantState {
-  const AssistantState({this.entries = const [], this.working, this.proposal});
+  const AssistantState({this.entries = const [], this.working, this.proposal, this.partial, this.status});
 
   final List<ChatEntry> entries;
 
@@ -29,6 +30,12 @@ class AssistantState {
   /// A change waiting for the user's OK.
   final RecategorizeProposal? proposal;
 
+  /// The answer as it is being written (on-device models stream).
+  final String? partial;
+
+  /// What the working indicator says, e.g. that the model is loading.
+  final String? status;
+
   bool get busy => working != null;
 
   AssistantState copyWith({
@@ -37,10 +44,14 @@ class AssistantState {
     bool clearWorking = false,
     RecategorizeProposal? proposal,
     bool clearProposal = false,
+    String? partial,
+    String? status,
   }) => AssistantState(
     entries: entries ?? this.entries,
     working: clearWorking ? null : working ?? this.working,
     proposal: clearProposal ? null : proposal ?? this.proposal,
+    partial: clearWorking ? null : (partial == null ? this.partial : (partial.isEmpty ? null : partial)),
+    status: clearWorking ? null : status ?? this.status,
   );
 }
 
@@ -83,18 +94,33 @@ class AssistantController extends Notifier<AssistantState> {
       return;
     }
 
+    final onDevice = client is LlmBudget;
+    if (client is OnDeviceClient && !OnDeviceClient.runtime.isWarm) {
+      state = state.copyWith(status: 'Loading the on-device model… the first answer takes a minute');
+    } else if (onDevice) {
+      state = state.copyWith(status: 'Thinking on this phone…');
+    }
     final agent = FinanceAgent(client: client, tools: FinanceTools(ref.read(databaseProvider)));
     try {
       final res = await agent.run(
         List.of(_history),
         q,
         confirm: _confirm,
-        onActivity: (a) => state = state.copyWith(working: [...?state.working, a]),
+        onActivity: (a) =>
+            state = state.copyWith(working: [...?state.working, a], status: onDevice ? 'Working on this phone…' : null),
+        onText: onDevice ? (t) => state = state.copyWith(partial: t) : null,
       );
       _history.addAll(res.newMessages);
       _finish(ChatEntry(ChatRole.assistant, res.text, activity: res.activity));
     } on LlmException catch (e) {
-      _finish(ChatEntry(ChatRole.error, e.userMessage));
+      _finish(
+        ChatEntry(
+          ChatRole.error,
+          onDevice && e.kind == LlmErrorKind.timeout
+              ? 'The on-device model is taking too long on this phone — try a shorter question or a smaller model.'
+              : e.userMessage,
+        ),
+      );
     } catch (e, st) {
       debugPrint('Assistant failed: $e\n$st');
       _finish(ChatEntry(ChatRole.error, 'Something went wrong: $e'));

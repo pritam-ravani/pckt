@@ -14,6 +14,9 @@ class FallbackReport {
   int sent = 0, added = 0, merged = 0, ignored = 0, failed = 0;
   String? error;
 
+  /// Stopped early (batch cap or paused for the user); rows stay pending.
+  bool stoppedEarly = false;
+
   bool get changedAnything => added + merged + ignored + failed > 0;
 
   @override
@@ -37,6 +40,8 @@ class LlmFallbackParser {
     this.maxMessages = 80,
     this.pause = const Duration(milliseconds: 800),
     this.maxChars = 1800,
+    this.maxBatches,
+    this.shouldStop,
   });
 
   final AppDatabase db;
@@ -44,6 +49,13 @@ class LlmFallbackParser {
   final LlmClient client;
   final int batchSize;
   final int maxMessages;
+
+  /// Requests per run (null = all pending). On-device runs are capped.
+  final int? maxBatches;
+
+  /// Checked before each batch and on errors: true means stop now and leave
+  /// the rest pending (an Ask request needs the on-device model).
+  final bool Function()? shouldStop;
 
   /// Gap between requests — a crude client-side rate limit.
   final Duration pause;
@@ -74,13 +86,21 @@ Rules: copy the amount exactly from the text, never compute or guess it. "debit"
   Future<FallbackReport> run({void Function(int done, int total)? onProgress}) async {
     final report = FallbackReport();
     final rows = await pending();
-    for (var i = 0; i < rows.length; i += batchSize) {
+    for (var i = 0, n = 0; i < rows.length; i += batchSize, n++) {
+      if ((maxBatches != null && n >= maxBatches!) || (shouldStop?.call() ?? false)) {
+        report.stoppedEarly = true;
+        break;
+      }
       final batch = rows.sublist(i, (i + batchSize).clamp(0, rows.length));
       if (i > 0) await Future<void>.delayed(pause);
       try {
         await _runBatch(batch, report);
       } on LlmException catch (e) {
-        report.error = e.userMessage;
+        if (shouldStop?.call() ?? false) {
+          report.stoppedEarly = true;
+        } else {
+          report.error = e.userMessage;
+        }
         break; // stop on the first provider error; rows stay pending
       }
       onProgress?.call(i + batch.length, rows.length);

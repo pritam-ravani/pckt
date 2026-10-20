@@ -2,6 +2,7 @@ import 'package:intl/intl.dart';
 
 import '../llm_client.dart';
 import 'finance_tools.dart';
+import 'tool_result_budget.dart';
 
 /// Something the agent did while working on an answer, for the chat UI.
 class AgentActivity {
@@ -49,24 +50,53 @@ Today is ${DateFormat('EEEE, d MMMM yyyy').format(today)} (${DateFormat('yyyy-MM
 - You can give general, practical budgeting suggestions, but you are not a licensed financial adviser.''';
   }
 
+  /// Small-context (on-device) clients get compact tool results, a tighter
+  /// output cap and fewer steps: every token is computed on the phone.
+  LlmBudget? get _budget => client is LlmBudget ? client as LlmBudget : null;
+
+  /// Output cap per turn. A tool-planning turn emits one short call and
+  /// answers are asked to be concise; on a phone the cap mostly stops a
+  /// small model that starts rambling from burning minutes.
+  int get _maxTokens => _budget == null ? 4096 : 1024;
+
+  int get _steps => _budget == null ? maxSteps : maxSteps.clamp(1, 4);
+
+  String _resultContent(ToolOutcome out) {
+    final b = _budget;
+    return b == null ? out.content : compactToolJson(out.json, ToolResultBudget.forContext(b.contextTokens));
+  }
+
+  Future<LlmResponse> _ask(String system, List<LlmMessage> messages, int maxTokens, void Function(String)? onText) {
+    if ((onText, client) case (final onText?, final LlmStreamingClient c)) {
+      return c.chatStreaming(
+        system: system,
+        messages: messages,
+        tools: tools.specs,
+        maxTokens: maxTokens,
+        onText: onText,
+      );
+    }
+    return client.chat(system: system, messages: messages, tools: tools.specs, maxTokens: maxTokens);
+  }
+
+  /// [onText] receives the answer as it is written on clients that stream
+  /// (on-device). It is called with '' when a turn turns out to be a tool
+  /// call, so the UI can drop the draft.
   Future<AgentResult> run(
     List<LlmMessage> history,
     String userText, {
     ConfirmRecategorize? confirm,
     void Function(AgentActivity activity)? onActivity,
+    void Function(String textSoFar)? onText,
   }) async {
     final added = <LlmMessage>[UserMessage(userText)];
     final activity = <AgentActivity>[];
     final system = systemPrompt();
 
-    for (var step = 0; step < maxSteps; step++) {
-      final res = await client.chat(
-        system: system,
-        messages: [...history, ...added],
-        tools: tools.specs,
-        maxTokens: 4096,
-      );
+    for (var step = 0; step < _steps; step++) {
+      final res = await _ask(system, [...history, ...added], _maxTokens, onText);
       added.add(res.message);
+      if (res.toolCalls.isNotEmpty) onText?.call('');
       if (res.toolCalls.isEmpty) {
         final text = res.text.trim();
         return AgentResult(
@@ -83,7 +113,7 @@ Today is ${DateFormat('EEEE, d MMMM yyyy').format(today)} (${DateFormat('yyyy-MM
         final a = AgentActivity(call.name, out.summary, isError: out.isError);
         activity.add(a);
         onActivity?.call(a);
-        results.add(ToolResult(callId: call.id, name: call.name, content: out.content, isError: out.isError));
+        results.add(ToolResult(callId: call.id, name: call.name, content: _resultContent(out), isError: out.isError));
       }
       added.add(ToolResultsMessage(results));
     }
@@ -91,11 +121,11 @@ Today is ${DateFormat('EEEE, d MMMM yyyy').format(today)} (${DateFormat('yyyy-MM
     // Out of steps: ask once more for a best-effort answer. Tools stay
     // declared (some providers require it when history has tool calls), but
     // any further calls are dropped and only the text is kept.
-    final last = await client.chat(
-      system: '$system\n\nYou have used all your tool calls. Do not call tools; answer now from the results you have.',
-      messages: [...history, ...added],
-      tools: tools.specs,
-      maxTokens: 2048,
+    final last = await _ask(
+      '$system\n\nYou have used all your tool calls. Do not call tools; answer now from the results you have.',
+      [...history, ...added],
+      _budget == null ? 2048 : 1024,
+      onText,
     );
     final text = last.text.trim().isEmpty
         ? 'I couldn\'t finish that — try asking something more specific.'

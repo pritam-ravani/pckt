@@ -80,6 +80,16 @@ class DeviceProfile {
   static Future<bool> isMetered() async =>
       Platform.isAndroid && (await _channel.invokeMethod<bool>('isMetered') ?? true);
 
+  /// Plugged in and charging. False off Android or on any error.
+  static Future<bool> isCharging() async {
+    if (!Platform.isAndroid) return false;
+    try {
+      return await _channel.invokeMethod<bool>('isCharging') ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Android 13+ asks once, so the download's progress notification shows.
   static Future<void> requestNotifications() async {
     if (Platform.isAndroid) await _channel.invokeMethod<void>('requestNotifications');

@@ -1,7 +1,7 @@
 import 'package:drift/drift.dart';
-import 'package:drift_flutter/drift_flutter.dart';
 
 import '../seed/default_categories.dart';
+import 'db_encryption.dart';
 import 'tables.dart';
 
 export 'tables.dart';
@@ -18,7 +18,9 @@ class TxnView {
 
 @DriftDatabase(tables: [Accounts, Categories, Transactions, RawMessages, MerchantRules, Budgets])
 class AppDatabase extends _$AppDatabase {
-  AppDatabase([QueryExecutor? executor]) : super(executor ?? driftDatabase(name: 'pckt'));
+  /// Without an [executor], opens the SQLCipher-encrypted `pckt.sqlite`
+  /// (migrating a plaintext one first) — see [openAppDatabase].
+  AppDatabase([QueryExecutor? executor]) : super(executor ?? openAppDatabase());
 
   /// Seed categories every transaction can fall back to; never deletable.
   static const protectedCategories = {'Transfers', 'Other'};

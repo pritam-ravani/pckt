@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+1
+version: 1.0.0+2
 
 environment:
   sdk: ^3.13.5
@@ -56,6 +56,9 @@ dependencies:
   share_plus: ^13.3.1
   file_picker: ^13.1.0
   flutter_local_notifications: ^22.3.2
+  sqlite3: ^3.5.2 # SQLCipher build, selected under hooks.user_defines below
+  path: ^1.9.1
+  local_auth: ^3.0.2
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -68,6 +71,14 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   drift_dev: ^2.35.1
   build_runner: ^2.16.2
+
+# Native build options for package:sqlite3 (hooks). `sqlcipher` bundles the
+# SQLCipher community build instead of plain SQLite on every platform, so
+# the database can be encrypted at rest (lib/data/db/db_encryption.dart).
+hooks:
+  user_defines:
+    sqlite3:
+      source: sqlcipher
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

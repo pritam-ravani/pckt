@@ -1,5 +1,7 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart' hide Column;
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 
@@ -10,6 +12,8 @@ import 'ai_categorizer.dart';
 import 'fallback_parser.dart';
 import 'llm_client.dart';
 import 'llm_config.dart';
+import 'on_device/device_profile.dart';
+import 'on_device/on_device_client.dart';
 
 final httpClientProvider = Provider<http.Client>((ref) {
   final c = http.Client();
@@ -86,11 +90,67 @@ class AiJobsState {
   final String? error;
 }
 
+/// When background AI may run by itself with an on-device model. On a phone
+/// a batch takes a minute or more and heats the device, so it runs rarely,
+/// a few batches at a time, and more often while charging. Cloud providers
+/// keep running after every sync.
+class OnDeviceJobPolicy {
+  const OnDeviceJobPolicy({
+    this.interval = const Duration(hours: 6),
+    this.chargingInterval = const Duration(minutes: 30),
+    this.maxBatchesPerRun = 3,
+    this.startDelay = const Duration(seconds: 20),
+    this.quietBeforeStart = const Duration(seconds: 45),
+    this.maxResumesPerSession = 3,
+  });
+
+  final Duration interval;
+  final Duration chargingInterval;
+  final int maxBatchesPerRun;
+
+  /// Wait after a sync before starting, so the app settles first.
+  final Duration startDelay;
+
+  /// Don't start until the model has been unused (no Ask) for this long.
+  final Duration quietBeforeStart;
+  final int maxResumesPerSession;
+
+  bool shouldAutoRun({required DateTime? lastRun, required DateTime now, required bool charging}) =>
+      lastRun == null || now.difference(lastRun) >= (charging ? chargingInterval : interval);
+}
+
 /// Background AI work: reading unreadable messages and categorising.
-/// Runs after each sync when the matching privacy toggle is on, or on demand.
+/// Cloud: runs after each sync when the matching privacy toggle is on.
+/// On-device: see [OnDeviceJobPolicy]; it always yields to Ask requests and
+/// pauses while the app is in the background, resuming later.
 class AiJobsController extends Notifier<AiJobsState> {
+  AiJobsController({
+    this.policy = const OnDeviceJobPolicy(),
+    Future<bool> Function()? isCharging,
+    bool Function()? isForeground,
+    OnDeviceRuntime? runtime,
+  }) : _isCharging = isCharging ?? DeviceProfile.isCharging,
+       _isForeground = isForeground ?? _appInForeground,
+       _runtime = runtime ?? OnDeviceClient.runtime;
+
+  final OnDeviceJobPolicy policy;
+  final Future<bool> Function() _isCharging;
+  final bool Function() _isForeground;
+  final OnDeviceRuntime _runtime;
+
   static const _cursorKey = 'llm.categoriseCursor';
+  static const lastAutoRunKey = 'llm.onDevice.lastAutoRun';
   DateTime? _backoffUntil;
+  var _autoRunPending = false;
+  var _resumes = 0;
+
+  /// Set when a run stopped because the user needed the model.
+  var _yielded = false;
+
+  static bool _appInForeground() {
+    final s = WidgetsBinding.instance.lifecycleState;
+    return s == null || s == AppLifecycleState.resumed;
+  }
 
   @override
   AiJobsState build() {
@@ -107,10 +167,20 @@ class AiJobsController extends Notifier<AiJobsState> {
 
   Future<LlmClient?> _client() async {
     try {
-      return await ref.read(llmClientProvider.future);
+      final c = await ref.read(llmClientProvider.future);
+      // Batch work on the phone queues behind, and is stopped for, Ask.
+      return c is OnDeviceClient ? c.background() : c;
     } catch (_) {
       return null;
     }
+  }
+
+  /// For on-device runs: stop between (or in the middle of) batches when an
+  /// Ask request needs the model or the app left the foreground.
+  bool _shouldYield() {
+    final y = _runtime.interactivePending || !_isForeground();
+    if (y) _yielded = true;
+    return y;
   }
 
   /// Hook for any source's sync (SMS today, email too) — cheap no-op when
@@ -118,24 +188,80 @@ class AiJobsController extends Notifier<AiJobsState> {
   Future<void> runAfterSync() async {
     final config = ref.read(llmConfigProvider);
     if (!config.isConfigured || _busy) return;
+    if (!config.aiReadUnparsed && !config.aiCategorise) return;
     if (_backoffUntil != null && DateTime.now().isBefore(_backoffUntil!)) return;
+    if (await _client() is LlmBudget) return _autoRunOnDevice();
     if (config.aiReadUnparsed) await readUnparsed();
     if (config.aiCategorise) await categorise();
   }
 
-  Future<FallbackReport?> readUnparsed() async {
+  Future<void> _autoRunOnDevice({bool resuming = false}) async {
+    if (_autoRunPending) return;
+    final prefs = ref.read(prefsProvider);
+    final last = prefs.getInt(lastAutoRunKey);
+    final charging = await _isCharging();
+    if (!resuming &&
+        !policy.shouldAutoRun(
+          lastRun: last == null ? null : DateTime.fromMillisecondsSinceEpoch(last),
+          now: DateTime.now(),
+          charging: charging,
+        )) {
+      return;
+    }
+    _autoRunPending = true;
+    try {
+      await Future<void>.delayed(policy.startDelay);
+      await _runtime.scheduler.whenQuiet(policy.quietBeforeStart);
+      if (_busy || _shouldYield()) {
+        _scheduleResume();
+        return;
+      }
+      _yielded = false;
+      final config = ref.read(llmConfigProvider);
+      var stopped = false;
+      if (config.aiReadUnparsed) {
+        final r = await readUnparsed(maxBatches: policy.maxBatchesPerRun);
+        stopped = _yielded || r?.error != null;
+      }
+      if (config.aiCategorise && !stopped) await categorise(maxBatches: policy.maxBatchesPerRun);
+      if (_yielded) {
+        debugPrint('[pckt-ondevice] background AI paused for the user; will resume');
+        _scheduleResume();
+      } else {
+        await prefs.setInt(lastAutoRunKey, DateTime.now().millisecondsSinceEpoch);
+      }
+    } finally {
+      _autoRunPending = false;
+    }
+  }
+
+  /// After a pause for the user, try again once the model has been quiet.
+  void _scheduleResume() {
+    if (_resumes >= policy.maxResumesPerSession) return;
+    _resumes++;
+    unawaited(
+      _runtime.scheduler.whenQuiet(policy.quietBeforeStart).then((_) {
+        if (_isForeground()) return _autoRunOnDevice(resuming: true);
+      }),
+    );
+  }
+
+  Future<FallbackReport?> readUnparsed({int? maxBatches}) async {
     final config = ref.read(llmConfigProvider);
     if (!config.aiReadUnparsed || _busy) return null;
     final client = await _client();
     if (client == null) return null;
+    final onDevice = client is LlmBudget;
     final parser = LlmFallbackParser(
       db: ref.read(databaseProvider),
       ingestion: ref.read(ingestionProvider),
       client: client,
       // A phone-sized context window fits one or two messages per request.
-      batchSize: client is LlmBudget ? 2 : 8,
-      maxChars: client is LlmBudget ? 700 : 1800,
-      pause: client is LlmBudget ? Duration.zero : const Duration(milliseconds: 800),
+      batchSize: onDevice ? 2 : 8,
+      maxChars: onDevice ? 700 : 1800,
+      pause: onDevice ? Duration.zero : const Duration(milliseconds: 800),
+      maxBatches: maxBatches,
+      shouldStop: onDevice ? _shouldYield : null,
     );
     if ((await parser.pending()).isEmpty) return null;
     state = const AiJobsState(running: 'Reading messages');
@@ -144,7 +270,10 @@ class AiJobsController extends Notifier<AiJobsState> {
         onProgress: (d, t) => state = AiJobsState(running: 'Reading messages', progress: (d, t)),
       );
       _noteError(report.error);
-      state = AiJobsState(lastResult: 'AI reader: $report', error: report.error);
+      state = AiJobsState(
+        lastResult: 'AI reader: $report${report.stoppedEarly ? ' · more later' : ''}',
+        error: report.error,
+      );
       return report;
     } catch (e, st) {
       debugPrint('AI reader failed: $e\n$st');
@@ -155,14 +284,21 @@ class AiJobsController extends Notifier<AiJobsState> {
 
   /// [all] re-checks every eligible transaction; otherwise only ones added
   /// since the last run.
-  Future<CategoriseReport?> categorise({bool all = false}) async {
+  Future<CategoriseReport?> categorise({bool all = false, int? maxBatches}) async {
     final config = ref.read(llmConfigProvider);
     if (!config.aiCategorise || _busy) return null;
     final client = await _client();
     if (client == null) return null;
+    final onDevice = client is LlmBudget;
     final prefs = ref.read(prefsProvider);
     final cursor = all ? 0 : prefs.getInt(_cursorKey) ?? 0;
-    final job = AiCategorizer(db: ref.read(databaseProvider), client: client, batchSize: client is LlmBudget ? 8 : 40);
+    final job = AiCategorizer(
+      db: ref.read(databaseProvider),
+      client: client,
+      batchSize: onDevice ? 8 : 40,
+      maxBatches: maxBatches,
+      shouldStop: onDevice ? _shouldYield : null,
+    );
     if ((await job.candidates(afterId: cursor)).isEmpty) {
       if (all) state = const AiJobsState(lastResult: 'Nothing left in "Other" to categorise');
       return null;
@@ -176,7 +312,10 @@ class AiJobsController extends Notifier<AiJobsState> {
       final maxId = report.maxId;
       if (maxId != null && maxId > (prefs.getInt(_cursorKey) ?? 0)) await prefs.setInt(_cursorKey, maxId);
       _noteError(report.error);
-      state = AiJobsState(lastResult: 'AI categories: $report', error: report.error);
+      state = AiJobsState(
+        lastResult: 'AI categories: $report${report.stoppedEarly ? ' · more later' : ''}',
+        error: report.error,
+      );
       return report;
     } catch (e, st) {
       debugPrint('AI categorise failed: $e\n$st');

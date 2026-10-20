@@ -97,7 +97,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                       children: [
                         for (final e in chat.entries) _Bubble(entry: e),
-                        if (chat.busy) _Working(activity: chat.working!),
+                        if (chat.busy) _Working(activity: chat.working!, partial: chat.partial, status: chat.status),
                         if (chat.proposal != null) _ProposalCard(proposal: chat.proposal!),
                       ],
                     ),
@@ -236,8 +236,10 @@ class _ActivityChips extends StatelessWidget {
 }
 
 class _Working extends StatelessWidget {
-  const _Working({required this.activity});
+  const _Working({required this.activity, this.partial, this.status});
   final List<AgentActivity> activity;
+  final String? partial;
+  final String? status;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -246,13 +248,20 @@ class _Working extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (activity.isNotEmpty) ...[_ActivityChips(activity), const SizedBox(height: 8)],
+        if (partial != null) ...[
+          // The answer as the on-device model writes it.
+          _Bubble(entry: ChatEntry(ChatRole.assistant, partial!)),
+          const SizedBox(height: 6),
+        ],
         Row(
           children: [
             const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
             const SizedBox(width: 10),
-            Text(
-              activity.isEmpty ? 'Thinking…' : 'Working…',
-              style: context.text.bodySmall?.copyWith(color: context.colors.onSurfaceVariant),
+            Flexible(
+              child: Text(
+                partial != null ? 'Writing…' : status ?? (activity.isEmpty ? 'Thinking…' : 'Working…'),
+                style: context.text.bodySmall?.copyWith(color: context.colors.onSurfaceVariant),
+              ),
             ),
           ],
         ),

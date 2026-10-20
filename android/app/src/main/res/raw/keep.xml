@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Resource shrinking (release) can't see resources referenced by name from
+     Dart, e.g. the notification small icon passed to flutter_local_notifications. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/ic_stat_pckt,@mipmap/ic_launcher,@mipmap/ic_launcher_round,@drawable/ic_launcher_monochrome" />

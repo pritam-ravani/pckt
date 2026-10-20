@@ -12,6 +12,10 @@ class CategoriseReport {
   int? maxId;
   String? error;
 
+  /// Stopped early (batch cap reached or paused for the user); the rest is
+  /// picked up by the next run.
+  bool stoppedEarly = false;
+
   @override
   String toString() => 'looked at $sent · recategorised $updated · learned $rulesLearned rules';
 }
@@ -27,6 +31,8 @@ class AiCategorizer {
     this.batchSize = 40,
     this.maxTxns = 200,
     this.pause = const Duration(milliseconds: 800),
+    this.maxBatches,
+    this.shouldStop,
   });
 
   final AppDatabase db;
@@ -34,6 +40,13 @@ class AiCategorizer {
   final int batchSize;
   final int maxTxns;
   final Duration pause;
+
+  /// Requests per run (null = all candidates). On-device runs are capped.
+  final int? maxBatches;
+
+  /// Checked before each batch and on errors: true means stop now and keep
+  /// the rest for later (an Ask request needs the on-device model).
+  final bool Function()? shouldStop;
 
   /// Confidence at which a merchant-level answer becomes a [MerchantRule].
   static const ruleConfidence = 0.8;
@@ -58,8 +71,9 @@ Set "merchantLevel" true only when the merchant name alone determines the catego
 Reply with ONLY JSON: {"results":[{"id":<id>,"category":"<name>","confidence":<0..1>,"merchantLevel":true|false}]}''';
   }
 
-  /// Unlocked, non-transfer transactions without a useful category,
-  /// newer than [afterId].
+  /// Unlocked, non-transfer transactions without a useful category, with
+  /// id above [afterId], in id order — so a run that stops early can resume
+  /// from the highest id it finished.
   Future<List<Transaction>> candidates({int afterId = 0}) async {
     final cats = await db.allCategories();
     final fallbackIds = cats.where((c) => fallbackNames.contains(c.name)).map((c) => c.id).toList();
@@ -72,7 +86,7 @@ Reply with ONLY JSON: {"results":[{"id":<id>,"category":"<name>","confidence":<0
                 (t.categoryId.isNull() | t.categoryId.isIn(fallbackIds)) &
                 (t.merchant.isNotNull() | t.counterparty.isNotNull()),
           )
-          ..orderBy([(t) => OrderingTerm.desc(t.occurredAt)])
+          ..orderBy([(t) => OrderingTerm.asc(t.id)])
           ..limit(maxTxns))
         .get();
   }
@@ -85,7 +99,11 @@ Reply with ONLY JSON: {"results":[{"id":<id>,"category":"<name>","confidence":<0
     final byName = {for (final c in cats) c.name.toLowerCase(): c};
     final system = systemPrompt(cats);
 
-    for (var i = 0; i < txns.length; i += batchSize) {
+    for (var i = 0, n = 0; i < txns.length; i += batchSize, n++) {
+      if ((maxBatches != null && n >= maxBatches!) || (shouldStop?.call() ?? false)) {
+        report.stoppedEarly = true;
+        break;
+      }
       final batch = txns.sublist(i, (i + batchSize).clamp(0, txns.length));
       if (i > 0) await Future<void>.delayed(pause);
       final payload = [
@@ -105,7 +123,11 @@ Reply with ONLY JSON: {"results":[{"id":<id>,"category":"<name>","confidence":<0
       try {
         res = await client.chat(system: system, messages: [UserMessage(jsonEncode(payload))], maxTokens: 4096);
       } on LlmException catch (e) {
-        report.error = e.userMessage;
+        if (shouldStop?.call() ?? false) {
+          report.stoppedEarly = true;
+        } else {
+          report.error = e.userMessage;
+        }
         break;
       }
       await _apply(batch, extractResults(res.text), byName, report);

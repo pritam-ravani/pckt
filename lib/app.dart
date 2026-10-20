@@ -9,6 +9,7 @@ import 'features/assistant/assistant_screen.dart';
 import 'features/budgets/budgets_screen.dart';
 import 'features/dashboard/dashboard_screen.dart';
 import 'features/insights/insights_screen.dart';
+import 'features/lock/app_lock_gate.dart';
 import 'features/onboarding/onboarding_screen.dart';
 import 'data/db/tables.dart';
 import 'features/recurring/recurring_screen.dart';
@@ -90,5 +91,7 @@ class PcktApp extends ConsumerWidget {
     darkTheme: AppTheme.dark(),
     themeMode: ref.watch(themeModeProvider),
     routerConfig: ref.watch(_routerProvider),
+    // Optional app lock over every route (off by default).
+    builder: (context, child) => AppLockGate(child: child ?? const SizedBox.shrink()),
   );
 }
