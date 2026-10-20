@@ -6,8 +6,11 @@ import 'package:intl/intl.dart';
 
 import '../../core/format.dart';
 import '../../data/db/database.dart';
+import '../../features/recurring/recurring_detector.dart';
 import '../llm_client.dart';
 import '../llm_json.dart';
+
+export '../../features/recurring/recurring_detector.dart' show RecurringPayment, detectRecurring;
 
 /// Result of running one tool: JSON for the model + a one-line summary
 /// for the activity chip in the chat UI.
@@ -325,11 +328,11 @@ class FinanceTools {
       today.add(const Duration(days: 1)),
     )).where((v) => !v.txn.isTransfer && v.txn.direction == TxnDirection.debit).toList();
     final found = detectRecurring(txns, today: today);
-    final monthly = found.fold<double>(0, (s, r) => s + r.monthlyCostMinor);
+    final monthly = monthlyTotalMinor(found);
     return ToolOutcome({
       'scanned_from': _day.format(from),
-      'estimated_monthly_total': _rupees(monthly.round()),
-      'estimated_monthly_total_formatted': money(monthly.round()),
+      'estimated_monthly_total': _rupees(monthly),
+      'estimated_monthly_total_formatted': money(monthly),
       'recurring': [
         for (final r in found)
           {
@@ -340,7 +343,7 @@ class FinanceTools {
             'occurrences': r.count,
             'last_date': _day.format(r.last),
             'next_expected': _day.format(r.next),
-            'category': ?r.category,
+            'category': ?r.category?.name,
             'monthly_cost': _rupees(r.monthlyCostMinor.round()),
           },
       ],
@@ -405,71 +408,4 @@ class FinanceTools {
 class _BadArgs implements Exception {
   const _BadArgs(this.message);
   final String message;
-}
-
-// ------------------------------------------------------------ recurring
-
-class RecurringPayment {
-  const RecurringPayment({
-    required this.name,
-    required this.cadence,
-    required this.periodDays,
-    required this.typicalMinor,
-    required this.count,
-    required this.last,
-    this.category,
-  });
-
-  final String name;
-  final String cadence;
-  final int periodDays;
-  final int typicalMinor;
-  final int count;
-  final DateTime last;
-  final String? category;
-
-  DateTime get next => last.add(Duration(days: periodDays));
-  double get monthlyCostMinor => typicalMinor * 30.4 / periodDays;
-}
-
-/// Same merchant + similar amount (±20% of the median) at a steady cadence.
-/// Needs 3+ similar payments, most gaps fitting the cadence, and a recent one.
-List<RecurringPayment> detectRecurring(List<TxnView> debits, {required DateTime today}) {
-  const cadences = [('weekly', 7, 5, 9), ('monthly', 30, 25, 36), ('quarterly', 91, 80, 100)];
-  final groups = groupBy(debits, (TxnView v) => (v.txn.merchant ?? v.txn.counterparty ?? '').toLowerCase().trim());
-  final out = <RecurringPayment>[];
-  for (final e in groups.entries) {
-    if (e.key.isEmpty || e.value.length < 3) continue;
-    final sorted = e.value.sortedBy((v) => v.txn.occurredAt);
-    final amounts = sorted.map((v) => v.txn.amountMinor).sorted((a, b) => a.compareTo(b));
-    final median = amounts[amounts.length ~/ 2];
-    // Keep payments with a similar amount (a subscription, not every Swiggy order).
-    final similar = sorted.where((v) => (v.txn.amountMinor - median).abs() <= median * 0.2).toList();
-    if (similar.length < 3) continue;
-    final gaps = [
-      for (var i = 1; i < similar.length; i++)
-        similar[i].txn.occurredAt.difference(similar[i - 1].txn.occurredAt).inHours / 24,
-    ];
-    for (final (label, period, lo, hi) in cadences) {
-      final fitting = gaps.where((g) => g >= lo && g <= hi).length;
-      if (fitting < 2 || fitting / gaps.length < 0.6) continue;
-      final last = similar.last.txn.occurredAt;
-      // Stale: missed more than two cycles.
-      if (today.difference(last).inDays > period * 2 + hi - period) break;
-      out.add(
-        RecurringPayment(
-          name: similar.last.txn.merchant ?? similar.last.txn.counterparty ?? e.key,
-          cadence: label,
-          periodDays: period,
-          typicalMinor: median,
-          count: similar.length,
-          last: last,
-          category: similar.last.category?.name,
-        ),
-      );
-      break;
-    }
-  }
-  out.sort((a, b) => b.monthlyCostMinor.compareTo(a.monthlyCostMinor));
-  return out;
 }
