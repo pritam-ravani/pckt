@@ -96,7 +96,7 @@ class TransactionTile extends StatelessWidget {
     final subtitle = [
       if (t.isTransfer) 'Transfer' else view.category?.name ?? 'Uncategorised',
       showDate ? dayLabel(t.occurredAt) : timeLabel(t.occurredAt),
-      if (view.account != null) '••${view.account!.last4}',
+      if (view.account != null) view.account!.last4 == null ? view.account!.name : '••${view.account!.last4}',
     ].join('  ·  ');
 
     return InkWell(

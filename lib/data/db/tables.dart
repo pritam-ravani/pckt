@@ -37,6 +37,10 @@ class Categories extends Table {
   IntColumn get color => integer()();
   BoolColumn get isIncome => boolean().withDefault(const Constant(false))();
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+
+  /// Name of the seed category this row was created from (null for
+  /// user-made ones). Keeps keyword rules working after a rename.
+  TextColumn get seedName => text().nullable()();
 }
 
 class Transactions extends Table {
@@ -91,6 +95,19 @@ class RawMessages extends Table {
   List<Set<Column>> get uniqueKeys => [
     {source, externalId},
   ];
+}
+
+/// Monthly spending limits. A row with a null [categoryId] is the overall
+/// monthly budget (at most one); others cap a single category. Budgets
+/// repeat every month until removed or paused.
+class Budgets extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get categoryId => integer().nullable().references(Categories, #id, onDelete: KeyAction.cascade)();
+
+  /// Limit per month, in paise.
+  IntColumn get amountMinor => integer()();
+  BoolColumn get active => boolean().withDefault(const Constant(true))();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 }
 
 /// Learned "merchant → category" mappings, created when the user

@@ -127,7 +127,10 @@ void main() {
     });
 
     test('single-word UPI P2M merchant is not a person', () {
-      final t = ok('AX-AXISBK-S', 'INR 99.00 debited\nA/c no. XX7890\n06-09-26\nUPI/P2M/528533334444/BLINKIT\nAxis Bank');
+      final t = ok(
+        'AX-AXISBK-S',
+        'INR 99.00 debited\nA/c no. XX7890\n06-09-26\nUPI/P2M/528533334444/BLINKIT\nAxis Bank',
+      );
       expect(t.isPersonToPerson, isFalse);
     });
 

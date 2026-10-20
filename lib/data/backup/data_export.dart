@@ -68,12 +68,9 @@ class DataExport {
     for (final m in await (db.select(db.rawMessages)..where((m) => m.transactionId.isNotNull())).get()) {
       sources.putIfAbsent(m.transactionId!, () => <String>{}).add(m.source.name);
     }
-    final txns =
-        await (db.select(db.transactions)..orderBy([
-              (t) => OrderingTerm(expression: t.occurredAt),
-              (t) => OrderingTerm(expression: t.id),
-            ]))
-            .get();
+    final txns = await (db.select(
+      db.transactions,
+    )..orderBy([(t) => OrderingTerm(expression: t.occurredAt), (t) => OrderingTerm(expression: t.id)])).get();
     final fmt = DateFormat('yyyy-MM-dd HH:mm:ss');
     final rows = <List<String>>[
       csvHeader,
@@ -195,7 +192,11 @@ class DataExport {
     final at = data['exportedAt'];
     return (
       data,
-      BackupSummary(exportedAt: at is String ? DateTime.tryParse(at)?.toLocal() : null, schemaVersion: sv, counts: counts),
+      BackupSummary(
+        exportedAt: at is String ? DateTime.tryParse(at)?.toLocal() : null,
+        schemaVersion: sv,
+        counts: counts,
+      ),
     );
   }
 
@@ -209,9 +210,8 @@ class DataExport {
 /// RFC 4180 CSV with CRLF line endings and a UTF-8 BOM so Excel reads ₹ and
 /// non-ASCII names correctly.
 String encodeCsv(List<List<String>> rows) {
-  String cell(String s) => RegExp(r'[",\r\n]').hasMatch(s) || s.startsWith(' ') || s.endsWith(' ')
-      ? '"${s.replaceAll('"', '""')}"'
-      : s;
+  String cell(String s) =>
+      RegExp(r'[",\r\n]').hasMatch(s) || s.startsWith(' ') || s.endsWith(' ') ? '"${s.replaceAll('"', '""')}"' : s;
   return '﻿${rows.map((r) => r.map(cell).join(',')).join('\r\n')}\r\n';
 }
 

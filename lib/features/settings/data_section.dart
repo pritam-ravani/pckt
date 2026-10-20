@@ -101,7 +101,12 @@ Future<void> _deliver(BuildContext context, String name, List<int> bytes, String
   final dir = await getTemporaryDirectory();
   final file = File('${dir.path}/$name');
   await file.writeAsBytes(bytes, flush: true);
-  await SharePlus.instance.share(ShareParams(files: [XFile(file.path, mimeType: mime)], subject: name));
+  await SharePlus.instance.share(
+    ShareParams(
+      files: [XFile(file.path, mimeType: mime)],
+      subject: name,
+    ),
+  );
 }
 
 Future<void> _restore(BuildContext context, WidgetRef ref) async {

@@ -6,10 +6,14 @@ import 'package:go_router/go_router.dart';
 import 'core/theme/app_theme.dart';
 import 'features/activity/activity_screen.dart';
 import 'features/assistant/assistant_screen.dart';
+import 'features/budgets/budgets_screen.dart';
 import 'features/dashboard/dashboard_screen.dart';
 import 'features/insights/insights_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
 import 'data/db/tables.dart';
+import 'features/recurring/recurring_screen.dart';
+import 'features/settings/accounts_screen.dart';
+import 'features/settings/categories_screen.dart';
 import 'features/settings/email_connect_screen.dart';
 import 'features/settings/llm_settings_screen.dart';
 import 'features/settings/messages_screen.dart';
@@ -36,6 +40,10 @@ final _routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(path: '/email/connect', builder: (_, _) => const EmailConnectScreen()),
       GoRoute(path: '/llm', builder: (_, _) => const LlmSettingsScreen()),
+      GoRoute(path: '/budgets', builder: (_, _) => const BudgetsScreen()),
+      GoRoute(path: '/recurring', builder: (_, _) => const RecurringScreen()),
+      GoRoute(path: '/settings/accounts', builder: (_, _) => const AccountsScreen()),
+      GoRoute(path: '/settings/categories', builder: (_, _) => const CategoriesScreen()),
       StatefulShellRoute.indexedStack(
         builder: (_, _, shell) => HomeShell(shell: shell),
         branches: [

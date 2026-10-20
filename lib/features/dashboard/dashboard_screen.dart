@@ -9,6 +9,7 @@ import '../../core/theme/palette.dart';
 import '../../providers.dart';
 import '../../ui/widgets.dart';
 import '../activity/transaction_sheet.dart';
+import '../budgets/budget_widgets.dart';
 import '../stats.dart';
 import 'category_donut.dart';
 import 'hero_card.dart';
@@ -44,6 +45,8 @@ class DashboardScreen extends ConsumerWidget {
                       sliver: SliverList.list(
                         children: [
                           HeroCard(stats: stats, month: month),
+                          const SizedBox(height: 12),
+                          BudgetCard(hasSpending: stats.spent > 0),
                           if (review > 0) ...[const SizedBox(height: 12), _ReviewBanner(count: review)],
                           if (!sync.enabled && list.isEmpty) ...[const SizedBox(height: 12), const _ConnectSmsCard()],
                           const SizedBox(height: 20),

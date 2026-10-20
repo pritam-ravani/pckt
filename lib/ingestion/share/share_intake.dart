@@ -68,11 +68,9 @@ Future<ShareOutcome> ingestShared(IngestionService svc, SharedText shared, {Date
   final db = svc.db;
   final input = shared.toRawInput(now ?? DateTime.now());
   final report = await svc.ingest([input]);
-  final raw =
-      await (db.select(db.rawMessages)..where(
-            (m) => m.source.equalsValue(SourceKind.shortcut) & m.externalId.equals(input.externalId),
-          ))
-          .getSingleOrNull();
+  final raw = await (db.select(
+    db.rawMessages,
+  )..where((m) => m.source.equalsValue(SourceKind.shortcut) & m.externalId.equals(input.externalId))).getSingleOrNull();
   final txn = raw?.transactionId == null
       ? null
       : await (db.select(db.transactions)..where((t) => t.id.equals(raw!.transactionId!))).getSingleOrNull();

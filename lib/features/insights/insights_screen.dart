@@ -1,6 +1,7 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/theme/icons.dart';
 
@@ -9,6 +10,10 @@ import '../../core/theme/palette.dart';
 import '../../data/db/database.dart';
 import '../../providers.dart';
 import '../../ui/widgets.dart';
+import '../budgets/budget_math.dart';
+import '../budgets/budget_providers.dart';
+import '../recurring/recurring_detector.dart';
+import '../recurring/recurring_screen.dart';
 import '../stats.dart';
 
 class InsightsScreen extends ConsumerWidget {
@@ -94,6 +99,32 @@ class InsightsScreen extends ConsumerWidget {
                 ),
               ],
             ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: _LinkTile(
+                    icon: PhosphorIconsFill.target,
+                    title: 'Budgets',
+                    subtitle: _budgetSummary(ref.watch(budgetProgressProvider).value),
+                    onTap: () => context.push('/budgets'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _LinkTile(
+                    icon: PhosphorIconsFill.repeat,
+                    title: 'Recurring',
+                    subtitle: switch (ref.watch(recurringProvider).value) {
+                      null => '…',
+                      final l when l.isEmpty => 'None found',
+                      final l => '${moneyCompact(monthlyTotalMinor(l))}/mo',
+                    },
+                    onTap: () => context.push('/recurring'),
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 20),
             const SectionHeader('Last 6 months'),
             AppCard(
@@ -143,6 +174,51 @@ class InsightsScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+String _budgetSummary(List<BudgetProgress>? progress) {
+  if (progress == null) return '…';
+  if (progress.isEmpty) return 'Set a limit';
+  final over = progress.where((p) => p.level == BudgetLevel.over).length;
+  if (over > 0) return '$over over limit';
+  final overall = progress.where((p) => p.isOverall).firstOrNull;
+  if (overall != null) return '${(overall.ratio * 100).round()}% used';
+  return '${progress.length} active';
+}
+
+class _LinkTile extends StatelessWidget {
+  const _LinkTile({required this.icon, required this.title, required this.subtitle, required this.onTap});
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => AppCard(
+    padding: const EdgeInsets.all(14),
+    onTap: onTap,
+    child: Row(
+      children: [
+        Icon(icon, size: 22, color: Palette.violet),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: context.text.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+              Text(
+                subtitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: context.text.bodySmall?.copyWith(color: context.colors.onSurfaceVariant),
+              ),
+            ],
+          ),
+        ),
+        Icon(PhosphorIconsBold.caretRight, size: 14, color: context.colors.onSurfaceVariant),
+      ],
+    ),
+  );
 }
 
 class _StatTile extends StatelessWidget {
