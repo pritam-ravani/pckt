@@ -4,24 +4,56 @@ import android.Manifest
 import android.app.ActivityManager
 import android.content.pm.PackageManager
 import android.net.ConnectivityManager
+import android.os.BatteryManager
 import android.os.Build
+import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.StatFs
 import android.provider.Telephony
-import io.flutter.embedding.android.FlutterActivity
+import android.view.WindowManager
+import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
 import java.util.concurrent.Executors
 
-class MainActivity : FlutterActivity() {
+// FlutterFragmentActivity (not FlutterActivity): local_auth's biometric
+// prompt needs a FragmentActivity.
+class MainActivity : FlutterFragmentActivity() {
     private val io = Executors.newSingleThreadExecutor()
     private val main = Handler(Looper.getMainLooper())
     private var pendingPermission: MethodChannel.Result? = null
 
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        // Apply "Hide in recent apps" before the first frame, so even the
+        // cold-start snapshot is protected. Dart keeps it in shared_preferences
+        // (legacy store: FlutterSharedPreferences, keys prefixed "flutter.").
+        val prefs = getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE)
+        setSecure(prefs.getBoolean("flutter.$HIDE_IN_RECENTS_PREF", false))
+    }
+
+    private fun setSecure(secure: Boolean) {
+        if (secure) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        } else {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        }
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "pckt/security").setMethodCallHandler { call, result ->
+            when (call.method) {
+                // FLAG_SECURE: blank thumbnail in Recents, no screenshots.
+                "setSecure" -> {
+                    setSecure(call.argument<Boolean>("secure") == true)
+                    result.success(null)
+                }
+                else -> result.notImplemented()
+            }
+        }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "pckt/sms").setMethodCallHandler { call, result ->
             when (call.method) {
                 "hasPermission" -> result.success(hasSmsPermission())
@@ -58,6 +90,11 @@ class MainActivity : FlutterActivity() {
                 "isMetered" -> {
                     val cm = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
                     result.success(cm.activeNetwork == null || cm.isActiveNetworkMetered)
+                }
+                // Background on-device AI runs more often while charging.
+                "isCharging" -> {
+                    val bm = getSystemService(BATTERY_SERVICE) as BatteryManager
+                    result.success(bm.isCharging)
                 }
                 // Android 13+: lets the model download show its progress notification.
                 "requestNotifications" -> {
@@ -149,5 +186,7 @@ class MainActivity : FlutterActivity() {
     companion object {
         private const val SMS_REQUEST = 4201
         private const val NOTIFY_REQUEST = 4202
+        // Must match SecurityPrefKeys.hideInRecents on the Dart side.
+        private const val HIDE_IN_RECENTS_PREF = "security.hideInRecents"
     }
 }

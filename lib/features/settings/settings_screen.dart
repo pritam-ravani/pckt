@@ -12,6 +12,7 @@ import '../../providers.dart';
 import '../../ui/widgets.dart';
 import 'email_source_card.dart';
 import 'llm_status_card.dart';
+import 'security_card.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -72,6 +73,9 @@ class SettingsScreen extends ConsumerWidget {
               selected: {themeMode},
               onSelectionChanged: (s) => ref.read(themeModeProvider.notifier).set(s.first),
             ),
+            const SizedBox(height: 20),
+            const SectionHeader('Security'),
+            const SecurityCard(),
             const SizedBox(height: 20),
             const SectionHeader('Data'),
             AppCard(

@@ -62,11 +62,14 @@ abstract final class PhosphorIconsRegular {
   static const clockCounterClockwise = IconData(0xe1a0, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
   static const cpu = IconData(0xe610, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
   static const deviceMobile = IconData(0xe1e0, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
+  static const eyeSlash = IconData(0xe224, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
+  static const fingerprint = IconData(0xe23e, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
   static const gearSix = IconData(0xe272, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
   static const hardDrives = IconData(0xe2a0, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
   static const house = IconData(0xe2c2, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
   static const lightning = IconData(0xe2de, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
   static const listBullets = IconData(0xe2f2, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
+  static const lockSimple = IconData(0xe308, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
   static const magnifyingGlass = IconData(0xe30c, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
   static const memory = IconData(0xe9c4, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
   static const moon = IconData(0xe330, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
@@ -78,6 +81,7 @@ abstract final class PhosphorIconsRegular {
   static const sun = IconData(0xe472, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
   static const tag = IconData(0xe478, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
   static const trash = IconData(0xe4a6, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
+  static const warningCircle = IconData(0xe4e2, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
 }
 
 abstract final class PhosphorIconsBold {
@@ -99,6 +103,7 @@ abstract final class PhosphorIconsBold {
   static const downloadSimple = IconData(0xe20c, fontFamily: 'PhosphorBold', fontPackage: 'phosphor_flutter');
   static const eye = IconData(0xe220, fontFamily: 'PhosphorBold', fontPackage: 'phosphor_flutter');
   static const eyeSlash = IconData(0xe224, fontFamily: 'PhosphorBold', fontPackage: 'phosphor_flutter');
+  static const fingerprint = IconData(0xe23e, fontFamily: 'PhosphorBold', fontPackage: 'phosphor_flutter');
   static const gitMerge = IconData(0xe280, fontFamily: 'PhosphorBold', fontPackage: 'phosphor_flutter');
   static const googleLogo = IconData(0xe292, fontFamily: 'PhosphorBold', fontPackage: 'phosphor_flutter');
   static const hash = IconData(0xe2a2, fontFamily: 'PhosphorBold', fontPackage: 'phosphor_flutter');
@@ -107,6 +112,7 @@ abstract final class PhosphorIconsBold {
   static const lightning = IconData(0xe2de, fontFamily: 'PhosphorBold', fontPackage: 'phosphor_flutter');
   static const listBullets = IconData(0xe2f2, fontFamily: 'PhosphorBold', fontPackage: 'phosphor_flutter');
   static const listMagnifyingGlass = IconData(0xebe0, fontFamily: 'PhosphorBold', fontPackage: 'phosphor_flutter');
+  static const lockSimple = IconData(0xe308, fontFamily: 'PhosphorBold', fontPackage: 'phosphor_flutter');
   static const magnifyingGlass = IconData(0xe30c, fontFamily: 'PhosphorBold', fontPackage: 'phosphor_flutter');
   static const memory = IconData(0xe9c4, fontFamily: 'PhosphorBold', fontPackage: 'phosphor_flutter');
   static const minusCircle = IconData(0xe32c, fontFamily: 'PhosphorBold', fontPackage: 'phosphor_flutter');
