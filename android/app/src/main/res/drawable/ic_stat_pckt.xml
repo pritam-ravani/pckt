@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Status-bar icon for transaction alerts: a rupee sign. Must be single-colour. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M6,3h12v2h-3.6c0.6,0.6 1,1.3 1.2,2H18v2h-2.4c-0.4,2.4 -2.4,4.2 -5,4.5L16.5,21h-2.7l-5.6,-7.5V11.6h2.3c1.6,0 2.9,-1 3.3,-2.6H6V7h7.8c-0.5,-1.2 -1.7,-2 -3.1,-2H6V3z" />
+</vector>

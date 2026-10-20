@@ -7,6 +7,7 @@ import 'core/secrets.dart';
 import 'data/db/database.dart';
 import 'ingestion/ingestion_service.dart';
 import 'ingestion/parser/email_parser.dart';
+import 'ingestion/share/share_intake.dart';
 import 'ingestion/sms/sms_source.dart';
 
 // ------------------------------------------------------------------ infra
@@ -38,6 +39,11 @@ abstract final class PrefKeys {
   static const smsLastSync = 'sms.lastSyncMillis';
   static const smsImportFrom = 'sms.importFromMillis';
   static const smsParserVersion = 'sms.parserVersion';
+
+  /// Real-time SMS transaction notifications. Read natively by
+  /// SmsAlertReceiver.kt as `flutter.sms.alerts` — keep the name in sync.
+  /// Missing = on.
+  static const smsAlerts = 'sms.alerts';
   static const themeMode = 'themeMode';
 }
 
@@ -109,6 +115,7 @@ class SmsSyncController extends Notifier<SmsSyncState> {
       state = state.copyWith(error: 'SMS permission was denied');
       return false;
     }
+    if (_prefs.getBool(PrefKeys.smsAlerts) ?? true) await sms.requestNotifications();
     final from = DateTime(DateTime.now().year, DateTime.now().month - months, DateTime.now().day);
     await _prefs.setBool(PrefKeys.smsEnabled, true);
     await _prefs.setInt(PrefKeys.smsImportFrom, from.millisecondsSinceEpoch);
@@ -160,6 +167,78 @@ class SmsSyncController extends Notifier<SmsSyncState> {
 }
 
 final smsSyncProvider = NotifierProvider<SmsSyncController, SmsSyncState>(SmsSyncController.new);
+
+/// Real-time "₹250 debited · HDFC" notifications for incoming bank SMS.
+/// The native receiver checks the pref itself, so this only stores the
+/// choice and asks for the permissions it needs.
+class SmsAlertsController extends Notifier<bool> {
+  @override
+  bool build() => ref.read(prefsProvider).getBool(PrefKeys.smsAlerts) ?? true;
+
+  Future<void> set(bool on) async {
+    await ref.read(prefsProvider).setBool(PrefKeys.smsAlerts, on);
+    state = on;
+    if (!on) return;
+    final sms = ref.read(smsSourceProvider);
+    // Same permission group as READ_SMS, so this is normally granted silently.
+    if (!await sms.hasReceivePermission()) await sms.requestPermission();
+    await sms.requestNotifications();
+  }
+
+  /// Users who connected SMS before alerts existed have READ_SMS but not
+  /// RECEIVE_SMS; grant it (silently, same group) and ask for notifications,
+  /// once.
+  Future<void> ensurePermission() async {
+    final prefs = ref.read(prefsProvider);
+    if (!state || !(prefs.getBool(PrefKeys.smsEnabled) ?? false) || (prefs.getBool(_asked) ?? false)) return;
+    final sms = ref.read(smsSourceProvider);
+    if (!sms.isSupported || await sms.hasReceivePermission()) return;
+    await prefs.setBool(_asked, true);
+    await sms.requestPermission();
+    await sms.requestNotifications();
+  }
+
+  static const _asked = 'sms.alertsPermissionAsked';
+}
+
+final smsAlertsProvider = NotifierProvider<SmsAlertsController, bool>(SmsAlertsController.new);
+
+// ------------------------------------------------- share / shortcut intake
+
+/// Ingests text shared to Pckt (share sheet, pckt://ingest links) through
+/// the normal pipeline. State is the latest outcome, for a snackbar.
+class ShareIntakeController extends Notifier<ShareOutcome?> {
+  bool _busy = false;
+
+  @override
+  ShareOutcome? build() {
+    final sub = IncomingShares.instance.onPending.listen((_) => _process());
+    ref.onDispose(sub.cancel);
+    Future.microtask(_process);
+    return null;
+  }
+
+  Future<void> _process() async {
+    if (_busy) return;
+    _busy = true;
+    try {
+      while (IncomingShares.instance.hasPending) {
+        for (final s in IncomingShares.instance.drain()) {
+          try {
+            state = await ingestShared(ref.read(ingestionProvider), s);
+          } catch (e, st) {
+            debugPrint('Shared text ingest failed: $e\n$st');
+            state = ShareOutcome(ShareOutcomeKind.unreadable, reason: '$e');
+          }
+        }
+      }
+    } finally {
+      _busy = false;
+    }
+  }
+}
+
+final shareIntakeProvider = NotifierProvider<ShareIntakeController, ShareOutcome?>(ShareIntakeController.new);
 
 // ------------------------------------------------------------------ data
 

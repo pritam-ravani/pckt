@@ -91,6 +91,45 @@ abstract final class Senders {
     'IMEIND': 'IME India',
   };
 
+  /// Bank names as they appear in message text → a header fragment from
+  /// [_institutions]. Only banks: merchant names (Amazon, Paytm) would be
+  /// mistaken for the institution.
+  static final _bankNames = <RegExp, String>{
+    RegExp(r'\bHDFC\b'): 'HDFC',
+    RegExp(r'\bICICI\b'): 'ICICI',
+    RegExp(r'\bSBI ?CARD\b'): 'SBICRD',
+    RegExp(r'\bSBI\b|STATE BANK OF INDIA'): 'SBI',
+    RegExp(r'\bAXIS\b'): 'AXIS',
+    RegExp(r'\bKOTAK\b'): 'KOTAK',
+    RegExp(r'\bIDFC\b'): 'IDFC',
+    RegExp(r'\bYES BANK\b'): 'YESB',
+    RegExp(r'\bINDUSIND\b'): 'INDUS',
+    RegExp(r'\bPNB\b|PUNJAB NATIONAL'): 'PNB',
+    RegExp(r'\bBANK OF BARODA\b|\bBOB\b'): 'BARODA',
+    RegExp(r'\bCANARA\b'): 'CANBNK',
+    RegExp(r'\bUNION BANK\b'): 'UNIONB',
+    RegExp(r'\bFEDERAL BANK\b'): 'FEDBNK',
+    RegExp(r'\bAU (SMALL FINANCE )?BANK\b'): 'AUBANK',
+    RegExp(r'\bRBL\b'): 'RBL',
+    RegExp(r'\bIDBI\b'): 'IDBI',
+    RegExp(r'\bHSBC\b'): 'HSBC',
+    RegExp(r'\bCITI ?BANK\b'): 'CITI',
+    RegExp(r'\bAMERICAN EXPRESS\b|\bAMEX\b'): 'AMEX',
+    RegExp(r'\bIME INDIA\b'): 'IMEIND',
+  };
+
+  /// For messages without a sender (shared text): the header fragment of the
+  /// bank mentioned first in [body], or null.
+  static String? headerInText(String body) {
+    final upper = body.toUpperCase();
+    (int, String)? best;
+    for (final e in _bankNames.entries) {
+      final m = e.key.firstMatch(upper);
+      if (m != null && (best == null || m.start < best.$1)) best = (m.start, e.value);
+    }
+    return best?.$2;
+  }
+
   static String? institutionFor(String header) {
     for (final e in _institutions.entries) {
       if (header.contains(e.key)) return e.value;

@@ -13,6 +13,7 @@ import '../../ui/widgets.dart';
 import 'data_section.dart';
 import 'email_source_card.dart';
 import 'llm_status_card.dart';
+import 'sms_alerts_tile.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -195,6 +196,7 @@ class _SmsCard extends ConsumerWidget {
               ],
             ),
           ],
+          if (supported && sync.enabled) const SmsAlertsTile(),
           const SizedBox(height: 14),
           if (supported)
             Row(

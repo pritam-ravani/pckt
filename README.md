@@ -163,6 +163,51 @@ model that fits (`lib/llm/on_device/model_catalog.dart`):
 - Measured on a Galaxy F23 (6 GB, Snapdragon 750G): Gemma 4 E2B loads on the GPU and calls tools,
   but memory is tight and a multi-step Ask answer takes minutes.
 
+## Real-time SMS alerts (Android)
+
+`SmsAlertReceiver.kt` listens for `SMS_RECEIVED` (permission `RECEIVE_SMS`, asked together with
+`READ_SMS`). If a message comes from a known bank DLT sender (`VM-HDFCBK`, `AD-ICICIT-S`, not
+`-P` promos) and has a completed debit/credit verb plus an amount, it posts *"₹250 debited · HDFC —
+Tap to review"* on the **Transaction alerts** channel. Tapping opens Pckt, which syncs SMS on resume;
+the receiver itself stores nothing, so the Dart pipeline stays the source of truth. Turn it off in
+Settings → SMS → *Instant alerts* (pref `sms.alerts`, read natively as `flutter.sms.alerts`).
+Android 13+ also needs the notification permission, which Pckt asks for once.
+
+## Share to Pckt & iOS Shortcuts
+
+Any text can be fed through the normal pipeline (parse → dedup → categorise → store) as source
+`shortcut`; a snackbar says whether it was added, matched an existing transaction or ignored.
+
+- **Android share sheet:** long-press a bank SMS → Share → Pckt.
+- **Link:** `pckt://ingest?text=<url-encoded message>&sender=<url-encoded sender>` (`sender` is
+  optional; without it the bank is guessed from the text). Works on Android and iOS.
+
+iOS gives apps no SMS access, but a Shortcuts automation can forward each bank message:
+
+1. Shortcuts → **Automation** → **+** → **Message**. *Message Contains*: `debited` (make a second
+   automation for `credited`, and for `spent` if your card SMS use it). Choose **Run Immediately**.
+2. Add **URL Encode** → input: *Shortcut Input* → **Content** (tap the variable to pick it).
+3. Add a second **URL Encode** → input: *Shortcut Input* → **Sender**.
+4. Add **Text**: `pckt://ingest?text=` *URL Encoded Text (1)* `&sender=` *URL Encoded Text (2)*.
+5. Add **Open URLs** with that Text.
+
+Each matching message then opens Pckt briefly and shows what was recorded. Sharing the same message
+twice is a no-op (content-hashed id), and a message that also arrives by email is merged by dedup.
+
+## Export & backup
+
+Settings → Data:
+
+- **Export transactions (CSV)** — date, amount (₹), direction, merchant, category, account, mode,
+  reference, note, sources; UTF-8 with BOM so Excel shows ₹ and names correctly.
+- **Back up everything** — a JSON dump of every table (accounts, categories, transactions, raw
+  messages, merchant rules and anything added later) with format and schema versions.
+- **Restore from backup** — validates the file (format, schema version not newer than the app,
+  required tables), shows what it contains, and after confirmation replaces all data in a single
+  DB transaction (nothing changes if anything fails).
+
+Files go out through the share sheet or a *Save to device* dialog.
+
 ## Roadmap
 
 - [x] Phase 1 — app shell, theme, DB, dashboard, activity, insights, manual entry
@@ -171,5 +216,5 @@ model that fits (`lib/llm/on_device/model_catalog.dart`):
       Gmail OAuth (`gmail.readonly`); email parser feeding the same pipeline, SMS↔email dedup
 - [x] Phase 4 — Bring-your-own LLM: OpenAI-compatible / Anthropic / Gemini, key in secure storage;
       LLM fallback for unreadable messages; agent chat with tools over the local DB
-- [ ] Phase 5 — budgets, subscription detection, iOS Shortcuts bridge, SQLCipher encryption,
-      real-time SMS receiver (on-device Gemma models: done, see above)
+- [ ] Phase 5 — budgets, subscription detection, SQLCipher encryption (done: on-device Gemma
+      models, iOS Shortcuts / share bridge, real-time SMS alerts, CSV export & JSON backup)

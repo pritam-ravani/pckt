@@ -57,6 +57,7 @@ abstract final class PhosphorIconsFill {
 abstract final class PhosphorIconsRegular {
   static const archive = IconData(0xe00c, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
   static const arrowsLeftRight = IconData(0xe0a0, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
+  static const bellRinging = IconData(0xe5e8, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
   static const calendarBlank = IconData(0xe10a, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
   static const chartPie = IconData(0xe158, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
   static const chatText = IconData(0xe17a, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');

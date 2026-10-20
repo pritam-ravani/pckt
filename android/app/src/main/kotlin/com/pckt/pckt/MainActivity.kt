@@ -2,6 +2,7 @@ package com.pckt.pckt
 
 import android.Manifest
 import android.app.ActivityManager
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.os.Build
@@ -20,18 +21,28 @@ class MainActivity : FlutterActivity() {
     private val main = Handler(Looper.getMainLooper())
     private var pendingPermission: MethodChannel.Result? = null
 
+    /** Text shared to Pckt / pckt://ingest links not yet taken by Dart. */
+    private val pendingShares = ArrayList<Map<String, Any?>>()
+    private var shareChannel: MethodChannel? = null
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "pckt/sms").setMethodCallHandler { call, result ->
             when (call.method) {
                 "hasPermission" -> result.success(hasSmsPermission())
+                // RECEIVE_SMS powers real-time alerts; it is in the same group as
+                // READ_SMS, so once that is granted it's granted without a dialog.
+                "hasReceivePermission" -> result.success(hasReceivePermission())
                 "requestPermission" -> {
-                    if (hasSmsPermission()) {
+                    if (hasSmsPermission() && hasReceivePermission()) {
                         result.success(true)
                     } else {
                         pendingPermission?.success(false)
                         pendingPermission = result
-                        requestPermissions(arrayOf(Manifest.permission.READ_SMS), SMS_REQUEST)
+                        requestPermissions(
+                            arrayOf(Manifest.permission.READ_SMS, Manifest.permission.RECEIVE_SMS),
+                            SMS_REQUEST,
+                        )
                     }
                 }
                 "readInbox" -> {
@@ -68,9 +79,57 @@ class MainActivity : FlutterActivity() {
                     }
                     result.success(null)
                 }
+                "notificationsAllowed" -> result.success(
+                    Build.VERSION.SDK_INT < 33 ||
+                        checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+                )
                 else -> result.notImplemented()
             }
         }
+        shareChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "pckt/share").apply {
+            setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "takePending" -> {
+                        result.success(ArrayList(pendingShares))
+                        pendingShares.clear()
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+        }
+        captureShare(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (captureShare(intent)) shareChannel?.invokeMethod("pending", null)
+    }
+
+    /**
+     * ACTION_SEND text/plain (share sheet) or pckt://ingest?text=…&sender=…
+     * (deep link). Queued until Dart asks; returns true if one was captured.
+     */
+    private fun captureShare(intent: Intent?): Boolean {
+        if (intent == null || intent.getBooleanExtra(EXTRA_HANDLED, false)) return false
+        val share = when {
+            intent.action == Intent.ACTION_SEND && intent.type?.startsWith("text/") == true -> {
+                val text = intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()
+                text?.let { mapOf("text" to it, "sender" to null, "via" to "share") }
+            }
+            intent.action == Intent.ACTION_VIEW && intent.data?.scheme == "pckt" && intent.data?.host == "ingest" -> {
+                val data = intent.data!!
+                data.getQueryParameter("text")?.let {
+                    mapOf("text" to it, "sender" to data.getQueryParameter("sender"), "via" to "link")
+                }
+            }
+            else -> null
+        } ?: return false
+        if ((share["text"] as String).isBlank()) return false
+        // Don't re-ingest the same intent after a configuration change / recreate.
+        intent.putExtra(EXTRA_HANDLED, true)
+        pendingShares.add(share)
+        return true
     }
 
     /** What the on-device model picker needs to choose a model that fits. */
@@ -105,10 +164,14 @@ class MainActivity : FlutterActivity() {
     private fun hasSmsPermission() =
         checkSelfPermission(Manifest.permission.READ_SMS) == PackageManager.PERMISSION_GRANTED
 
+    private fun hasReceivePermission() =
+        checkSelfPermission(Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED
+
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == SMS_REQUEST) {
-            pendingPermission?.success(grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED)
+            // Success means inbox access; RECEIVE_SMS only adds live alerts.
+            pendingPermission?.success(hasSmsPermission())
             pendingPermission = null
         }
     }
@@ -149,5 +212,7 @@ class MainActivity : FlutterActivity() {
     companion object {
         private const val SMS_REQUEST = 4201
         private const val NOTIFY_REQUEST = 4202
+        const val EXTRA_FROM_ALERT = "com.pckt.pckt.FROM_ALERT"
+        private const val EXTRA_HANDLED = "com.pckt.pckt.SHARE_HANDLED"
     }
 }

@@ -9,6 +9,7 @@ import '../../ingestion/ingestion_service.dart';
 import '../../llm/llm_providers.dart';
 import '../../providers.dart';
 import '../activity/add_transaction_sheet.dart';
+import 'share_outcome.dart';
 
 class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key, required this.shell});
@@ -27,7 +28,10 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     super.initState();
     // Pull new SMS (and email) whenever the app comes to the foreground.
     _lifecycle = AppLifecycleListener(onResume: _sync);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _sync());
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _sync();
+      await ref.read(smsAlertsProvider.notifier).ensurePermission();
+    });
   }
 
   Future<void> _sync() => Future.wait([
@@ -59,6 +63,9 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     final review = ref.watch(reviewCountProvider).value ?? 0;
     // Keeps the AI jobs alive so they run after each sync.
     ref.listen(aiJobsProvider, (_, _) {});
+    ref.listen(shareIntakeProvider, (_, outcome) {
+      if (outcome != null) showShareOutcome(context, outcome);
+    });
     return Scaffold(
       body: widget.shell,
       floatingActionButton: index <= 1

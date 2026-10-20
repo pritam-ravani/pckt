@@ -48,3 +48,8 @@ kotlin {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    // NotificationCompat for SMS transaction alerts (SmsAlertReceiver).
+    implementation("androidx.core:core:1.13.1")
+}
