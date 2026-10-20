@@ -9,6 +9,8 @@ import '../../data/db/database.dart';
 import '../../providers.dart';
 import '../../ui/widgets.dart';
 import 'category_picker.dart';
+import '../settings/manage_widgets.dart' show accountLabel;
+import 'edit_transaction_sheet.dart';
 
 Future<void> showTransactionSheet(BuildContext context, int id) => showModalBottomSheet(
   context: context,
@@ -73,13 +75,39 @@ class TransactionSheet extends ConsumerWidget {
           children: [
             InfoPill(icon: modeIcon(t.mode), label: modeLabel(t.mode)),
             if (view.account != null)
-              InfoPill(icon: PhosphorIconsBold.bank, label: '${view.account!.name} ••${view.account!.last4}')
+              InfoPill(icon: PhosphorIconsBold.bank, label: accountLabel(view.account!))
             else if (t.accountHint != null)
               InfoPill(icon: PhosphorIconsBold.bank, label: '••${t.accountHint}'),
             if (t.reference != null) InfoPill(icon: PhosphorIconsBold.hash, label: t.reference!),
             if (t.counterparty != null && t.counterparty != t.merchant)
               InfoPill(icon: PhosphorIconsBold.at, label: t.counterparty!),
           ],
+        ),
+        if (t.note != null && t.note!.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: context.colors.surfaceContainerHigh,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(PhosphorIconsRegular.notePencil, size: 18, color: context.colors.onSurfaceVariant),
+                const SizedBox(width: 10),
+                Expanded(child: Text(t.note!, style: context.text.bodyMedium)),
+              ],
+            ),
+          ),
+        ],
+        const SizedBox(height: 6),
+        Center(
+          child: TextButton.icon(
+            onPressed: () => showEditTransactionSheet(context, view),
+            icon: const Icon(PhosphorIconsRegular.pencilSimple, size: 18),
+            label: const Text('Edit details'),
+          ),
         ),
         if (t.duplicateOfId != null) ...[
           const SizedBox(height: 18),
@@ -99,7 +127,7 @@ class TransactionSheet extends ConsumerWidget {
             ),
           ),
         ],
-        const SizedBox(height: 22),
+        const SizedBox(height: 16),
         const SectionHeader('Category'),
         CategoryPicker(
           selectedId: t.categoryId,
