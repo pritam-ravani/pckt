@@ -53,6 +53,7 @@ dependencies:
   flutter_edge_ai: ^2.4.1
   flutter_edge_ai_litertlm: ^1.15.0
   background_downloader: ^9.6.4 # used only to clean up orphaned model downloads
+  flutter_local_notifications: ^22.3.2
 dev_dependencies:
   flutter_test:
     sdk: flutter

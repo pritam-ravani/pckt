@@ -9,6 +9,7 @@ import '../../ingestion/ingestion_service.dart';
 import '../../llm/llm_providers.dart';
 import '../../providers.dart';
 import '../activity/add_transaction_sheet.dart';
+import '../budgets/budget_providers.dart';
 
 class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key, required this.shell});
@@ -59,6 +60,8 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     final review = ref.watch(reviewCountProvider).value ?? 0;
     // Keeps the AI jobs alive so they run after each sync.
     ref.listen(aiJobsProvider, (_, _) {});
+    // Budget alerts watch the DB, so they fire after syncs, adds and edits.
+    ref.listen(budgetAlertsProvider, (_, _) {});
     return Scaffold(
       body: widget.shell,
       floatingActionButton: index <= 1
