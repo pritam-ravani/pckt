@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 
+import '../../core/currency.dart';
 import '../seed/default_categories.dart';
 import 'db_encryption.dart';
 import 'tables.dart';
@@ -16,6 +17,22 @@ class TxnView {
   final Account? account;
 }
 
+extension TxnMoney on Transaction {
+  /// Amount in minor units of [home]: the amount itself for a [home]
+  /// transaction, the recorded conversion for a foreign one, or null when
+  /// there is none (it is then left out of totals rather than guessed).
+  int? amountIn(String home) => currency == home
+      ? amountMinor
+      : convertedCurrency == home
+      ? convertedMinor
+      : null;
+
+  /// [amountIn] the current home currency.
+  int? get homeMinor => amountIn(Currencies.home);
+
+  bool get isForeign => currency != Currencies.home;
+}
+
 @DriftDatabase(tables: [Accounts, Categories, Transactions, RawMessages, MerchantRules, Budgets])
 class AppDatabase extends _$AppDatabase {
   /// Without an [executor], opens the SQLCipher-encrypted `pckt.sqlite`
@@ -26,7 +43,7 @@ class AppDatabase extends _$AppDatabase {
   static const protectedCategories = {'Transfers', 'Other'};
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -49,11 +66,27 @@ class AppDatabase extends _$AppDatabase {
         }
       }
       if (from < 2) await _addMissingSeedCategories();
+      // v4: currencies. Everything recorded so far was in rupees, which is
+      // the columns' default. (A pre-v3 database got the budgets table in
+      // its current shape above, hence the existence check.)
+      if (from < 4) {
+        await _addColumnIfMissing(m, transactions, transactions.currency);
+        await _addColumnIfMissing(m, transactions, transactions.convertedMinor);
+        await _addColumnIfMissing(m, transactions, transactions.convertedCurrency);
+        await _addColumnIfMissing(m, accounts, accounts.currency);
+        await _addColumnIfMissing(m, budgets, budgets.currency);
+      }
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
     },
   );
+
+  Future<void> _addColumnIfMissing(Migrator m, TableInfo table, GeneratedColumn column) async {
+    final cols = await customSelect('PRAGMA table_info("${table.actualTableName}")').get();
+    if (cols.any((c) => c.read<String>('name') == column.name)) return;
+    await m.addColumn(table, column);
+  }
 
   Future<void> _seedCategories() async {
     await batch((b) {
@@ -196,19 +229,28 @@ class AppDatabase extends _$AppDatabase {
     return {for (final r in await q.get()) r.read(rawMessages.externalId)!};
   }
 
-  /// Candidate duplicates: same amount + direction within ±[window].
+  /// Candidate duplicates: same amount, currency and direction within
+  /// ±[window]. A transaction recorded in two currencies ("USD 12.50
+  /// (INR 1,045.30)") also matches on its converted amount, both ways, so
+  /// a rupee-only alert for the same card spend still finds it. [also] is
+  /// the new payment's own converted amount, if any.
   Future<List<Transaction>> candidatesFor({
     required int amountMinor,
+    String currency = 'INR',
     required TxnDirection direction,
     required DateTime at,
     Duration window = const Duration(hours: 48),
+    (int, String)? also,
   }) =>
-      (select(transactions)..where(
-            (t) =>
-                t.amountMinor.equals(amountMinor) &
+      (select(transactions)..where((t) {
+            var amount =
+                (t.amountMinor.equals(amountMinor) & t.currency.equals(currency)) |
+                (t.convertedMinor.equals(amountMinor) & t.convertedCurrency.equals(currency));
+            if (also != null) amount = amount | (t.amountMinor.equals(also.$1) & t.currency.equals(also.$2));
+            return amount &
                 t.direction.equalsValue(direction) &
-                t.occurredAt.isBetweenValues(at.subtract(window), at.add(window)),
-          ))
+                t.occurredAt.isBetweenValues(at.subtract(window), at.add(window));
+          }))
           .get();
 
   Future<List<RawMessage>> sourcesOf(int txnId) =>
@@ -269,8 +311,12 @@ class AppDatabase extends _$AppDatabase {
   Future<void> setNote(int id, String? note) =>
       (update(transactions)..where((t) => t.id.equals(id))).write(TransactionsCompanion(note: Value(note)));
 
+  /// [currency] defaults to the home currency; [convertedMinor] is the
+  /// home-currency amount of a foreign one.
   Future<int> addManual({
     required int amountMinor,
+    String? currency,
+    int? convertedMinor,
     required TxnDirection direction,
     required DateTime at,
     String? merchant,
@@ -281,6 +327,9 @@ class AppDatabase extends _$AppDatabase {
     final id = await into(transactions).insert(
       TransactionsCompanion.insert(
         amountMinor: amountMinor,
+        currency: Value(currency ?? Currencies.home),
+        convertedMinor: Value(convertedMinor),
+        convertedCurrency: Value(convertedMinor == null ? null : Currencies.home),
         direction: direction,
         occurredAt: at,
         merchant: Value(merchant),
@@ -323,6 +372,9 @@ class AppDatabase extends _$AppDatabase {
   Future<void> updateTxn(
     int id, {
     required int amountMinor,
+    Value<String> currency = const Value.absent(),
+    Value<int?> convertedMinor = const Value.absent(),
+    Value<String?> convertedCurrency = const Value.absent(),
     required TxnDirection direction,
     required DateTime occurredAt,
     required String? merchant,
@@ -332,6 +384,9 @@ class AppDatabase extends _$AppDatabase {
   }) => (update(transactions)..where((t) => t.id.equals(id))).write(
     TransactionsCompanion(
       amountMinor: Value(amountMinor),
+      currency: currency,
+      convertedMinor: convertedMinor,
+      convertedCurrency: convertedCurrency,
       direction: Value(direction),
       occurredAt: Value(occurredAt),
       merchant: Value(merchant),
@@ -340,6 +395,13 @@ class AppDatabase extends _$AppDatabase {
       categoryId: categoryId,
     ),
   );
+
+  /// Records what a foreign transaction came to in [currency] (normally
+  /// the home currency), or clears it with a null [minor].
+  Future<void> setConversion(int id, {required int? minor, required String currency}) =>
+      (update(transactions)..where((t) => t.id.equals(id))).write(
+        TransactionsCompanion(convertedMinor: Value(minor), convertedCurrency: Value(minor == null ? null : currency)),
+      );
 
   /// Renames every transaction from merchant [from] (case-insensitive) to
   /// [to] and carries the learned category rule over, so future messages
@@ -369,24 +431,32 @@ class AppDatabase extends _$AppDatabase {
 
   // ----------------------------------------------------------- budgets
 
-  /// Creates or replaces the monthly budget for [categoryId] (null = overall).
-  Future<void> setBudget({int? categoryId, required int amountMinor, bool active = true}) => transaction(() async {
-    final existing = await (select(
-      budgets,
-    )..where((b) => categoryId == null ? b.categoryId.isNull() : b.categoryId.equals(categoryId))).get();
-    if (existing.isEmpty) {
-      await into(
-        budgets,
-      ).insert(BudgetsCompanion.insert(categoryId: Value(categoryId), amountMinor: amountMinor, active: Value(active)));
-      return;
-    }
-    await (update(budgets)..where((b) => b.id.equals(existing.first.id))).write(
-      BudgetsCompanion(amountMinor: Value(amountMinor), active: Value(active)),
-    );
-    for (final dup in existing.skip(1)) {
-      await (delete(budgets)..where((b) => b.id.equals(dup.id))).go();
-    }
-  });
+  /// Creates or replaces the monthly budget for [categoryId] (null = overall),
+  /// in [currency] (the home currency by default).
+  Future<void> setBudget({int? categoryId, required int amountMinor, bool active = true, String? currency}) =>
+      transaction(() async {
+        final code = currency ?? Currencies.home;
+        final existing = await (select(
+          budgets,
+        )..where((b) => categoryId == null ? b.categoryId.isNull() : b.categoryId.equals(categoryId))).get();
+        if (existing.isEmpty) {
+          await into(budgets).insert(
+            BudgetsCompanion.insert(
+              categoryId: Value(categoryId),
+              amountMinor: amountMinor,
+              active: Value(active),
+              currency: Value(code),
+            ),
+          );
+          return;
+        }
+        await (update(budgets)..where((b) => b.id.equals(existing.first.id))).write(
+          BudgetsCompanion(amountMinor: Value(amountMinor), active: Value(active), currency: Value(code)),
+        );
+        for (final dup in existing.skip(1)) {
+          await (delete(budgets)..where((b) => b.id.equals(dup.id))).go();
+        }
+      });
 
   Future<void> setBudgetActive(int id, bool active) =>
       (update(budgets)..where((b) => b.id.equals(id))).write(BudgetsCompanion(active: Value(active)));
@@ -395,16 +465,20 @@ class AppDatabase extends _$AppDatabase {
 
   // ---------------------------------------------------------- accounts
 
-  Future<int> addAccount({required String name, required AccountKind kind, required int color}) =>
-      into(accounts).insert(AccountsCompanion.insert(name: name, kind: kind, color: color));
+  /// [currency] defaults to the home currency.
+  Future<int> addAccount({required String name, required AccountKind kind, required int color, String? currency}) =>
+      into(accounts).insert(
+        AccountsCompanion.insert(name: name, kind: kind, color: color, currency: Value(currency ?? Currencies.home)),
+      );
 
-  Future<void> updateAccount(int id, {String? name, AccountKind? kind, int? color, bool? archived}) =>
+  Future<void> updateAccount(int id, {String? name, AccountKind? kind, int? color, bool? archived, String? currency}) =>
       (update(accounts)..where((a) => a.id.equals(id))).write(
         AccountsCompanion(
           name: name == null ? const Value.absent() : Value(name),
           kind: kind == null ? const Value.absent() : Value(kind),
           color: color == null ? const Value.absent() : Value(color),
           archived: archived == null ? const Value.absent() : Value(archived),
+          currency: currency == null ? const Value.absent() : Value(currency),
         ),
       );
 

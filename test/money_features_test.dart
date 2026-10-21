@@ -26,6 +26,7 @@ TxnView txn(
   Transaction(
     id: ++_id,
     amountMinor: minor,
+    currency: 'INR',
     direction: dir,
     occurredAt: at,
     merchant: merchant,
@@ -40,8 +41,14 @@ TxnView txn(
   null,
 );
 
-Budget budget(int id, int minor, {int? categoryId, bool active = true}) =>
-    Budget(id: id, categoryId: categoryId, amountMinor: minor, active: active, createdAt: DateTime(2026));
+Budget budget(int id, int minor, {int? categoryId, bool active = true}) => Budget(
+  id: id,
+  categoryId: categoryId,
+  amountMinor: minor,
+  currency: 'INR',
+  active: active,
+  createdAt: DateTime(2026),
+);
 
 void main() {
   final food = cat(1, 'Food');

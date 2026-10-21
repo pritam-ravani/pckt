@@ -18,10 +18,18 @@ class IngestReport {
 /// Source-agnostic pipeline: raw message → parse → dedup → categorise → store.
 /// SMS, email and anything else just produce [RawInput]s.
 class IngestionService {
-  IngestionService(this.db, {Map<SourceKind, MessageParser> parsers = const {}, this.dedup = const DedupEngine()})
-    : parsers = {SourceKind.sms: const SmsParser(), ...parsers};
+  IngestionService(
+    this.db, {
+    this.homeCurrency = 'INR',
+    Map<SourceKind, MessageParser> parsers = const {},
+    this.dedup = const DedupEngine(),
+  }) : parsers = {SourceKind.sms: SmsParser(home: homeCurrency), ...parsers};
 
   final AppDatabase db;
+
+  /// Assumed for amounts whose source names no currency; new accounts are
+  /// held in it.
+  final String homeCurrency;
 
   /// Parser per source. Sources without their own parser fall back to SMS
   /// rules, which also read most plain-text bank alert emails.
@@ -100,6 +108,38 @@ class IngestionService {
     }
   }
 
+  /// Re-reads stored messages that an older parser skipped for want of an
+  /// amount or a direction ("USD 12.50 spent", "card was used for Rs.640"),
+  /// so they appear without a destructive full re-import. Rows that still
+  /// don't parse are left exactly as they were. Returns how many became
+  /// (or merged into) transactions.
+  Future<int> reparseSkipped() async {
+    final rows =
+        await (db.select(db.rawMessages)..where(
+              (m) =>
+                  (m.parseStatus.equalsValue(ParseStatus.ignored) &
+                      m.ignoreReason.isIn(const ['No amount', 'Not a transaction'])) |
+                  (m.parseStatus.equalsValue(ParseStatus.pendingLlm) &
+                      m.ignoreReason.isIn(const ['Could not read amount', 'Could not tell debit from credit'])),
+            ))
+            .get();
+    var n = 0;
+    for (final m in rows) {
+      final input = RawInput(
+        source: m.source,
+        externalId: m.externalId,
+        sender: m.sender,
+        body: m.body,
+        receivedAt: m.receivedAt,
+      );
+      if (_parserFor(m.source).parse(input) case Parsed(:final txn)) {
+        await applyParsed(m, txn);
+        n++;
+      }
+    }
+    return n;
+  }
+
   /// Applies a transaction extracted out-of-band (e.g. by the LLM fallback)
   /// to a raw message that is already stored. Runs the same dedup →
   /// categorise → store path as [ingest], but updates the existing raw row
@@ -147,12 +187,25 @@ class IngestionService {
     required IngestReport report,
     required Future<void> Function(ParseStatus status, {int? txnId, double? score}) writeRaw,
   }) async {
+    final currency = txn.currency ?? homeCurrency;
+    final converted = txn.convertedMinor != null && txn.convertedCurrency != null && txn.convertedCurrency != currency
+        ? (txn.convertedMinor!, txn.convertedCurrency!)
+        : null;
     final sourceKey = DedupEngine.sourceKey(source, sender);
-    final match = dedup.best(txn, sourceKey, await _candidates(txn));
+    final match = dedup.best(txn, sourceKey, await _candidates(txn, currency, converted));
 
     if (match != null && match.score >= DedupEngine.autoMerge) {
       report.merged++;
-      await _enrich(match.candidate.id, txn, source: source, sender: sender, body: body, categorizer: categorizer);
+      await _enrich(
+        match.candidate.id,
+        txn,
+        currency: currency,
+        converted: converted,
+        source: source,
+        sender: sender,
+        body: body,
+        categorizer: categorizer,
+      );
       await writeRaw(ParseStatus.merged, txnId: match.candidate.id, score: match.score);
       return;
     }
@@ -168,6 +221,9 @@ class IngestionService {
         .insert(
           TransactionsCompanion.insert(
             amountMinor: txn.amountMinor,
+            currency: Value(currency),
+            convertedMinor: Value(converted?.$1),
+            convertedCurrency: Value(converted?.$2),
             direction: txn.direction,
             occurredAt: txn.occurredAt,
             merchant: Value(txn.merchant),
@@ -184,12 +240,18 @@ class IngestionService {
         );
     await writeRaw(ParseStatus.parsed, txnId: id);
     if (account != null && !txn.transferHint) {
-      await _detectSelfTransfer(id, txn, account.id, categorizer.transferId);
+      await _detectSelfTransfer(id, txn, currency, account.id, categorizer.transferId);
     }
   }
 
-  Future<List<DedupCandidate>> _candidates(ParsedTxn t) async {
-    final rows = await db.candidatesFor(amountMinor: t.amountMinor, direction: t.direction, at: t.occurredAt);
+  Future<List<DedupCandidate>> _candidates(ParsedTxn t, String currency, (int, String)? converted) async {
+    final rows = await db.candidatesFor(
+      amountMinor: t.amountMinor,
+      currency: currency,
+      also: converted,
+      direction: t.direction,
+      at: t.occurredAt,
+    );
     return [
       for (final r in rows)
         DedupCandidate(
@@ -211,6 +273,8 @@ class IngestionService {
   Future<void> _enrich(
     int id,
     ParsedTxn t, {
+    required String currency,
+    required (int, String)? converted,
     required SourceKind source,
     required String sender,
     required String body,
@@ -224,9 +288,20 @@ class IngestionService {
         EmailSenders.isMerchant(sender);
     final merchant = betterMerchant || existing.merchant == null ? t.merchant : existing.merchant;
     final recategorize = betterMerchant && !existing.categoryLocked && !existing.isTransfer;
+    // A rupee-only alert matched a foreign spend (or the other way round):
+    // the second source tells us what it cost at home.
+    final conversion = existing.convertedMinor != null
+        ? null
+        : currency != existing.currency
+        ? (t.amountMinor, currency)
+        : converted != null && converted.$2 != existing.currency
+        ? converted
+        : null;
     await (db.update(db.transactions)..where((x) => x.id.equals(id))).write(
       TransactionsCompanion(
         reference: existing.reference == null ? Value(t.reference) : const Value.absent(),
+        convertedMinor: conversion == null ? const Value.absent() : Value(conversion.$1),
+        convertedCurrency: conversion == null ? const Value.absent() : Value(conversion.$2),
         merchant: merchant != existing.merchant ? Value(merchant) : const Value.absent(),
         categoryId: recategorize
             ? Value(
@@ -273,6 +348,7 @@ class IngestionService {
       last4: hint,
       color: Palette.categories[(accounts.length * 5 + 6) % Palette.categories.length].toARGB32(),
       archived: false,
+      currency: homeCurrency,
     );
     final id = await db.into(db.accounts).insert(account.toCompanion(true).copyWith(id: const Value.absent()));
     final created = account.copyWith(id: id);
@@ -282,10 +358,11 @@ class IngestionService {
 
   /// Debit from one own account + equal credit into another within an hour
   /// ⇒ both legs are a self-transfer and shouldn't count as spend/income.
-  Future<void> _detectSelfTransfer(int id, ParsedTxn t, int accountId, int? transferCategory) async {
+  Future<void> _detectSelfTransfer(int id, ParsedTxn t, String currency, int accountId, int? transferCategory) async {
     final opposite = t.direction == TxnDirection.debit ? TxnDirection.credit : TxnDirection.debit;
     final legs = await db.candidatesFor(
       amountMinor: t.amountMinor,
+      currency: currency,
       direction: opposite,
       at: t.occurredAt,
       window: const Duration(hours: 1),

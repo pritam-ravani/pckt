@@ -1,5 +1,7 @@
+import '../../core/currency.dart';
 import '../../data/db/tables.dart';
 import '../email/email_text.dart';
+import 'currency_text.dart';
 import 'email_senders.dart';
 import 'parsed_txn.dart';
 import 'sms_parser.dart';
@@ -83,7 +85,8 @@ class EmailParser implements MessageParser {
 
   // ---- extraction ---------------------------------------------------------
 
-  static const _amt = r'(?:rs\.?|inr|₹)\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)';
+  /// Group 1 is the currency marker, group 2 the amount.
+  static const _amt = '$currencyTokenPattern\\s*$amountPattern';
 
   /// Labelled totals, most authoritative first.
   static final _totals = <RegExp>[
@@ -185,6 +188,9 @@ class EmailParser implements MessageParser {
     return Parsed(
       ParsedTxn(
         amountMinor: t.amountMinor,
+        currency: t.currency,
+        convertedMinor: t.convertedMinor,
+        convertedCurrency: t.convertedCurrency,
         direction: t.direction,
         occurredAt: bodyTime(lower, input.receivedAt),
         mode: t.mode,
@@ -240,16 +246,18 @@ class EmailParser implements MessageParser {
       }
     }
 
-    final amount = refund ? _refundAmountOf(lower) : _totalOf(lower);
-    if (amount == null) {
+    final total = refund ? _refundAmountOf(lower) : _totalOf(lower);
+    if (total == null) {
       if (_promo.hasMatch(lower)) return const Ignored('Promotional');
       return _anyAmount.hasMatch(lower) ? const Unparsed('Receipt without a clear total') : const Ignored('No amount');
     }
 
     final acct = _cardOrAcct.firstMatch(lower)?.group(1);
+    final (amount, currency) = total;
     return Parsed(
       ParsedTxn(
         amountMinor: amount,
+        currency: currency,
         direction: refund ? TxnDirection.credit : TxnDirection.debit,
         occurredAt: bodyTime(lower, input.receivedAt),
         mode: _mode(lower),
@@ -263,20 +271,26 @@ class EmailParser implements MessageParser {
     );
   }
 
-  static int? _totalOf(String l) {
+  /// Amount and currency of a match of [_amt].
+  (int, String)? _read(Match m) {
+    final currency = currencyOfToken(m.group(1)!, home: sms.home);
+    final a = parseMinor(m.group(2)!, digits: currencyDigits(currency));
+    return a != null && a > 0 ? (a, currency) : null;
+  }
+
+  (int, String)? _totalOf(String l) {
     for (final re in _totals) {
       final m = re.firstMatch(l);
       if (m == null) continue;
-      final a = parseMinor(m.group(1)!);
-      if (a != null && a > 0) return a;
+      final r = _read(m);
+      if (r != null) return r;
     }
     return null;
   }
 
-  static int? _refundAmountOf(String l) {
+  (int, String)? _refundAmountOf(String l) {
     final m = _refundAmount.firstMatch(l);
-    final a = m == null ? null : parseMinor(m.group(1)!);
-    return a != null && a > 0 ? a : _totalOf(l);
+    return (m == null ? null : _read(m)) ?? _totalOf(l);
   }
 
   static PaymentMode _mode(String l) {

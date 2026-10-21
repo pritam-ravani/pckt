@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart';
 
+import '../core/currency.dart';
 import '../data/db/database.dart';
 import '../ingestion/ingestion_service.dart';
 import '../ingestion/parser/parsed_txn.dart';
@@ -60,21 +61,22 @@ class LlmFallbackParser {
   /// Gap between requests — a crude client-side rate limit.
   final Duration pause;
 
-  /// ₹5 crore — anything bigger from an SMS is almost certainly misread.
+  /// ₹5 crore (in minor units of any currency) — anything bigger from an
+  /// SMS is almost certainly misread.
   static const maxAmountMinor = 5000000000;
 
   /// Long emails are clipped; the transaction details are near the top.
   final int maxChars;
 
   static const systemPrompt = '''
-You read Indian bank, card, UPI and wallet alert messages (SMS or email) that a rule-based parser could not handle.
+You read bank, card, UPI and wallet alert messages (SMS or email, mostly from India) that a rule-based parser could not handle.
 For each message decide whether it reports a COMPLETED money movement on the user's own account, card or wallet.
 NOT transactions: OTPs, promotions/offers, reminders, upcoming/scheduled/due debits, failed/declined/reversed attempts, payment requests, balance-only alerts, statements, mandate/autopay setup.
 
 Reply with ONLY JSON, no prose:
-{"results":[{"id":<id>,"isTransaction":true|false,"amount":<rupees as number>,"direction":"debit"|"credit","merchant":<payee/payer display name or null>,"counterparty":<VPA or raw name or null>,"accountLast4":<last 3-4 digits of the user's account/card or null>,"reference":<UPI ref/RRN/UTR or null>,"mode":"upi"|"card"|"netbanking"|"neft"|"imps"|"rtgs"|"atm"|"wallet"|"other","reason":<few words>}]}
+{"results":[{"id":<id>,"isTransaction":true|false,"amount":<number as printed, in its currency>,"currency":<ISO 4217 code of that amount, e.g. "INR", "USD", "AED", or null if the message names none>,"direction":"debit"|"credit","merchant":<payee/payer display name or null>,"counterparty":<VPA or raw name or null>,"accountLast4":<last 3-4 digits of the user's account/card or null>,"reference":<UPI ref/RRN/UTR or null>,"mode":"upi"|"card"|"netbanking"|"neft"|"imps"|"rtgs"|"atm"|"wallet"|"other","reason":<few words>}]}
 
-Rules: copy the amount exactly from the text, never compute or guess it. "debit" = money left the user's account. If unsure, set isTransaction false and say why in reason. Return one result per input id.''';
+Rules: copy the amount exactly from the text, never compute, convert or guess it. If several currencies appear, use the amount actually charged or received first. "debit" = money left the user's account. If unsure, set isTransaction false and say why in reason. Return one result per input id.''';
 
   Future<List<RawMessage>> pending() =>
       (db.select(db.rawMessages)
@@ -123,7 +125,7 @@ Rules: copy the amount exactly from the text, never compute or guess it. "debit"
     final byId = {for (final r in extractResults(res.text)) asInt(r['id']): r};
     for (final m in batch) {
       final r = byId[m.id];
-      final outcome = r == null ? const _Failed('no answer') : _interpret(r, m);
+      final outcome = r == null ? const _Failed('no answer') : _interpret(r, m, home: ingestion.homeCurrency);
       switch (outcome) {
         case _Txn(:final txn):
           final status = await ingestion.applyParsed(m, txn);
@@ -144,16 +146,18 @@ Rules: copy the amount exactly from the text, never compute or guess it. "debit"
       );
 
   /// Defensive validation of one model answer.
-  static _Outcome _interpret(Map<String, dynamic> r, RawMessage m) {
+  static _Outcome _interpret(Map<String, dynamic> r, RawMessage m, {required String home}) {
     final isTxn = r['isTransaction'];
     if (isTxn != true && isTxn != 'true') {
       return _NotTxn(asString(r['reason'], max: 60) ?? 'not a transaction');
     }
     final amount = asNumber(r['amount']);
     if (amount == null || amount <= 0) return const _Failed('no amount');
-    final minor = (amount * 100).round();
+    final code = asString(r['currency'])?.toUpperCase();
+    final currency = code != null && isSupportedCurrency(code) ? code : home;
+    final minor = toMinor(amount, currency);
     if (minor > maxAmountMinor) return const _Failed('implausible amount');
-    if (!amountAppearsIn(minor, m.body)) return const _Failed('amount not in message');
+    if (!amountAppearsIn(minor, m.body, currency: currency)) return const _Failed('amount not in message');
 
     final direction = switch (asString(r['direction'])?.toLowerCase()) {
       'debit' => TxnDirection.debit,
@@ -177,6 +181,7 @@ Rules: copy the amount exactly from the text, never compute or guess it. "debit"
     return _Txn(
       ParsedTxn(
         amountMinor: minor,
+        currency: currency,
         direction: direction,
         occurredAt: m.receivedAt,
         mode: mode,
@@ -193,12 +198,13 @@ Rules: copy the amount exactly from the text, never compute or guess it. "debit"
     );
   }
 
-  /// The integer rupee part must literally appear in the message (ignoring
-  /// thousands separators) — guards against hallucinated amounts.
-  static bool amountAppearsIn(int minor, String body) {
+  /// The whole-unit part (rupees, dollars) must literally appear in the
+  /// message (ignoring thousands separators) — guards against hallucinated
+  /// amounts.
+  static bool amountAppearsIn(int minor, String body, {String currency = 'INR'}) {
     final digits = body.replaceAll(',', '');
-    final rupees = minor ~/ 100;
-    return RegExp('(?<![0-9])$rupees(?![0-9])').hasMatch(digits);
+    final whole = minor ~/ minorPerUnit(currency);
+    return RegExp('(?<![0-9])$whole(?![0-9])').hasMatch(digits);
   }
 }
 

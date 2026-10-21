@@ -1,16 +1,28 @@
+import '../../core/currency.dart';
 import '../../data/db/tables.dart';
+import 'currency_text.dart';
 import 'parsed_txn.dart';
 import 'senders.dart';
 import 'text_utils.dart';
 
-/// Rule-based parser for Indian bank / card / UPI alerts.
+/// Rule-based parser for bank / card / UPI alerts, tuned on Indian banks.
+///
+/// Amounts are read with their currency ("Rs.250", "USD 12.50", "£8",
+/// "AED120.00"), so a card spend abroad keeps its own currency and a
+/// generic `debited/spent/credited <currency> <amount>` alert from any bank
+/// still parses; unknown senders get a lower confidence, which sends the
+/// transaction to review.
 ///
 /// Philosophy: be strict about *what is a transaction* (ignore OTPs,
 /// reminders, failures, promos) and lenient about *how it is phrased*.
 /// Anything that looks financial but cannot be parsed is returned as
 /// [Unparsed] so the LLM fallback can take a look later.
 class SmsParser implements MessageParser {
-  const SmsParser();
+  const SmsParser({this.home = 'INR'});
+
+  /// The user's home currency: resolves "Rs" and "$" and is assumed
+  /// when a message names no currency.
+  final String home;
 
   // ---- exclusion rules, checked in order --------------------------------
 
@@ -43,15 +55,19 @@ class SmsParser implements MessageParser {
 
   // ---- extraction -------------------------------------------------------
 
-  static final _currencyAmount = RegExp(r'(?:rs\.?|inr|₹)\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)');
+  /// Group 1 is the currency marker, group 2 the amount.
+  static final _currencyAmount = RegExp('$currencyTokenPattern\\s*$amountPattern');
   static final _verbAmount = RegExp(
     r'(?:debited|credited|deducted|withdrawn|spent|paid|sent|received)\s+(?:by|for|with|of)?\s*'
-    r'(?:rs\.?|inr|₹)?\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)',
+    '$currencyTokenPattern?\\s*$amountPattern',
   );
+
+  /// "12.50 USD": a bare number followed by an ISO code. Group 1 is the amount.
+  static final _amountCode = RegExp('(?<![0-9.,])$amountPattern(?=${currencySuffix.pattern.substring(1)})');
 
   static final _debitWords = RegExp(
     r'\b(debited|debit|spent|paid|sent|withdrawn|withdrawal|purchase|purchased|charged|deducted|'
-    r'transferred to|txn of|transaction of|dr\b)',
+    r'transferred to|txn of|transaction of|was used for|dr\b)',
   );
   static final _creditWords = RegExp(
     r'\b(credited|credit(?! card)|received|deposited|refund(ed)?|reversed|reversal|cashback|cr\b)',
@@ -108,7 +124,7 @@ class SmsParser implements MessageParser {
   @override
   ParseResult parse(RawInput input) {
     final sender = Senders.parse(input.sender);
-    final text = normalizeSpace(input.body);
+    final text = normalizeCurrencyText(normalizeSpace(input.body));
     final lower = text.toLowerCase();
 
     if (sender.isPhoneNumber) return const Ignored('Personal message');
@@ -116,7 +132,7 @@ class SmsParser implements MessageParser {
 
     final hasDebitVerb = _debitWords.hasMatch(lower);
     final hasCreditVerb = _creditWords.hasMatch(lower);
-    final hasAmount = _currencyAmount.hasMatch(lower) || _verbAmount.hasMatch(lower);
+    final hasAmount = _currencyAmount.hasMatch(lower) || _verbAmount.hasMatch(lower) || _amountCode.hasMatch(lower);
     final looksFinancial = hasAmount && (hasDebitVerb || hasCreditVerb);
 
     if (_failed.hasMatch(lower)) return const Ignored('Failed / declined');
@@ -131,8 +147,12 @@ class SmsParser implements MessageParser {
       return _balanceOnly.hasMatch(lower) ? const Ignored('Balance alert') : const Ignored('Not a transaction');
     }
 
-    final amount = _extractAmount(lower);
-    if (amount == null || amount <= 0) return const Unparsed('Could not read amount');
+    final found = _extractAmount(lower);
+    if (found == null) return const Unparsed('Could not read amount');
+    final (:amount, :currency, :start, :end) = found;
+    // A foreign amount often comes with its home-currency equivalent:
+    // "USD 12.50 (INR 1,045.30)".
+    final converted = currency == home ? null : _amountIn(lower, home, skip: (start, end));
 
     final direction = _direction(lower);
     if (direction == null) return const Unparsed('Could not tell debit from credit');
@@ -158,6 +178,9 @@ class SmsParser implements MessageParser {
     return Parsed(
       ParsedTxn(
         amountMinor: amount,
+        currency: currency,
+        convertedMinor: converted,
+        convertedCurrency: converted == null ? null : home,
         direction: direction,
         occurredAt: input.receivedAt,
         mode: mode,
@@ -175,16 +198,46 @@ class SmsParser implements MessageParser {
 
   static bool _strongVerb(String l) => RegExp(r'\b(debited|credited|spent|withdrawn)\b').hasMatch(l);
 
-  /// First amount that is not a balance / limit figure.
-  static int? _extractAmount(String l) {
+  /// First amount that is not a balance / limit figure, with its currency
+  /// and where it sits in [l].
+  ({int amount, String currency, int start, int end})? _extractAmount(String l) {
+    ({int amount, String currency, int start, int end})? read(Match m, String? token, String number) {
+      // "debited 12.50 USD": no marker before the number, a code after it.
+      final code = token != null ? null : currencySuffix.firstMatch(l.substring(m.end))?.group(1);
+      final currency = token != null
+          ? currencyOfToken(token, home: home)
+          : code != null
+          ? code.toUpperCase()
+          : home;
+      final a = parseMinor(number, digits: currencyDigits(currency));
+      return a != null && a > 0 ? (amount: a, currency: currency, start: m.start, end: m.end) : null;
+    }
+
     final v = _verbAmount.firstMatch(l);
     if (v != null && !_isBalanceContext(l, v.start)) {
-      final a = parseMinor(v.group(1)!);
-      if (a != null && a > 0) return a;
+      final r = read(v, v.group(1), v.group(2)!);
+      if (r != null) return r;
     }
     for (final m in _currencyAmount.allMatches(l)) {
       if (_isBalanceContext(l, m.start)) continue;
-      final a = parseMinor(m.group(1)!);
+      final r = read(m, m.group(1), m.group(2)!);
+      if (r != null) return r;
+    }
+    for (final m in _amountCode.allMatches(l)) {
+      if (_isBalanceContext(l, m.start)) continue;
+      final r = read(m, null, m.group(1)!);
+      if (r != null) return r;
+    }
+    return null;
+  }
+
+  /// An amount explicitly marked as [currency], outside [skip] and not a
+  /// balance / limit figure.
+  int? _amountIn(String l, String currency, {required (int, int) skip}) {
+    for (final m in _currencyAmount.allMatches(l)) {
+      if (m.start < skip.$2 && m.end > skip.$1) continue;
+      if (_isBalanceContext(l, m.start) || currencyOfToken(m.group(1)!, home: home) != currency) continue;
+      final a = parseMinor(m.group(2)!, digits: currencyDigits(currency));
       if (a != null && a > 0) return a;
     }
     return null;

@@ -25,6 +25,9 @@ class ParsedTxn {
     required this.occurredAt,
     required this.mode,
     required this.confidence,
+    this.currency,
+    this.convertedMinor,
+    this.convertedCurrency,
     this.merchant,
     this.counterparty,
     this.accountHint,
@@ -34,7 +37,17 @@ class ParsedTxn {
     this.transferHint = false,
   });
 
+  /// In minor units of [currency].
   final int amountMinor;
+
+  /// ISO 4217 code; null when the source didn't say (the home currency).
+  final String? currency;
+
+  /// The same amount in another currency when the message states it, e.g.
+  /// the rupee equivalent of a card spend abroad.
+  final int? convertedMinor;
+  final String? convertedCurrency;
+
   final TxnDirection direction;
   final DateTime occurredAt;
   final PaymentMode mode;
@@ -54,7 +67,8 @@ class ParsedTxn {
 
   @override
   String toString() =>
-      'ParsedTxn(${direction.name} $amountMinor, merchant: $merchant, cp: $counterparty, '
+      'ParsedTxn(${direction.name} $amountMinor${currency == null ? '' : ' $currency'}'
+      '${convertedMinor == null ? '' : ' (= $convertedMinor $convertedCurrency)'}, merchant: $merchant, cp: $counterparty, '
       'acct: $accountHint, ref: $reference, mode: ${mode.name}, inst: $institution, conf: $confidence)';
 }
 

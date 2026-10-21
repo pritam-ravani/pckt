@@ -301,6 +301,7 @@ void main() {
             Transaction(
               id: i,
               amountMinor: 64900,
+              currency: 'INR',
               direction: TxnDirection.debit,
               occurredAt: DateTime(2026, 6 + i, 5),
               merchant: 'Netflix',
@@ -318,6 +319,7 @@ void main() {
             Transaction(
               id: 10 + i,
               amountMinor: 20000 + i * 15000,
+              currency: 'INR',
               direction: TxnDirection.debit,
               occurredAt: DateTime(2026, 9, 1 + i * 3),
               merchant: 'Swiggy',

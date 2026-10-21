@@ -26,6 +26,9 @@ class Accounts extends Table {
   TextColumn get last4 => text().nullable()();
   IntColumn get color => integer()();
   BoolColumn get archived => boolean().withDefault(const Constant(false))();
+
+  /// ISO 4217 code the account is held in. Rows from before v4 are INR.
+  TextColumn get currency => text().withDefault(const Constant('INR'))();
 }
 
 class Categories extends Table {
@@ -46,8 +49,19 @@ class Categories extends Table {
 class Transactions extends Table {
   IntColumn get id => integer().autoIncrement()();
 
-  /// Stored in paise to avoid floating point drift.
+  /// In minor units of [currency] (paise, cents; whole yen for JPY, fils
+  /// for KWD) to avoid floating point drift.
   IntColumn get amountMinor => integer()();
+
+  /// ISO 4217 code of [amountMinor]. Rows from before v4 are INR.
+  TextColumn get currency => text().withDefault(const Constant('INR'))();
+
+  /// The same payment in another currency, normally the home currency:
+  /// stated by the message ("USD 12.50 (INR 1,045.30)") or entered by the
+  /// user. A foreign transaction counts towards totals and budgets only
+  /// with a converted amount in the home currency. Null for most rows.
+  IntColumn get convertedMinor => integer().nullable()();
+  TextColumn get convertedCurrency => text().nullable()();
   IntColumn get direction => intEnum<TxnDirection>()();
   DateTimeColumn get occurredAt => dateTime()();
   TextColumn get merchant => text().nullable()();
@@ -104,8 +118,12 @@ class Budgets extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get categoryId => integer().nullable().references(Categories, #id, onDelete: KeyAction.cascade)();
 
-  /// Limit per month, in paise.
+  /// Limit per month, in minor units of [currency].
   IntColumn get amountMinor => integer()();
+
+  /// A budget applies only while this is the home currency. Rows from
+  /// before v4 are INR.
+  TextColumn get currency => text().withDefault(const Constant('INR'))();
   BoolColumn get active => boolean().withDefault(const Constant(true))();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 }

@@ -1,11 +1,16 @@
 String normalizeSpace(String s) => s.replaceAll(RegExp(r'[ \t\r\f\v]+'), ' ').replaceAll(RegExp(r'\n\s*'), '\n').trim();
 
-/// "1,23,456.7" → 12345670 (paise).
-int? parseMinor(String s) {
+/// "1,23,456.7" → 12345670 (paise). [digits] is the currency's decimal
+/// places: 0 for JPY ("1,200" → 1200), 3 for KWD ("12.5" → 12500).
+int? parseMinor(String s, {int digits = 2}) {
   final cleaned = s.replaceAll(',', '');
   final v = double.tryParse(cleaned);
   if (v == null) return null;
-  return (v * 100).round();
+  var per = 1;
+  for (var i = 0; i < digits; i++) {
+    per *= 10;
+  }
+  return (v * per).round();
 }
 
 String titleCase(String s) => s
