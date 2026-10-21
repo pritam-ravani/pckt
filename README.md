@@ -8,7 +8,8 @@ copies, and sorts each one into a category. You don't type anything in. Everythi
 encrypted database on your phone. If you want AI help, you connect your own LLM (cloud or
 on-device); Pckt has no server and no account.
 
-Built for India first: Indian bank SMS formats, UPI references and VPAs, NACH/IMPS/NEFT, ₹ everywhere.
+Built for India first (Indian bank SMS formats, UPI references and VPAs, NACH/IMPS/NEFT, lakh/crore
+grouping), and works with 30+ currencies: pick your home currency, and spends abroad keep theirs.
 
 [Download the latest APK](https://github.com/pritam-ravani/pckt/releases/latest) · Android 11+, 64-bit ·
 GPL-3.0
@@ -20,8 +21,9 @@ often an email too. What's missing is software that reads those messages *on you
 send them to someone else's server.
 
 - **Messages in, transactions out.** A rule-based parser understands Indian bank alerts (sender
-  IDs, amounts, account last-4, UPI refs, merchants). Messages the rules can't read can optionally go
-  to your LLM.
+  IDs, amounts, account last-4, UPI refs, merchants) and reads amounts in any currency ("USD 12.50",
+  "£8.40", "AED 120.00"), so generic card and bank alerts from elsewhere parse too, flagged for a
+  quick review. Messages the rules can't read can optionally go to your LLM.
 - **One payment, one row.** The same ₹450 Swiggy order shows up as a bank SMS, a bank email and a
   Swiggy receipt. A scoring dedup engine (same reference, account, time, merchant, channel) merges
   them, and you can see why each merge happened and undo it. Transfers between your own accounts are
@@ -64,6 +66,9 @@ the device and has nothing to sell you.
   Outlook, Yahoo, Zoho or any server; optional Gmail OAuth)
 - Share any message or receipt into Pckt, plus a `pckt://ingest` link for iOS Shortcuts
 - Dashboard, activity feed, insights charts, budgets per category, recurring payment detection
+- A home currency (31 to choose from, defaulted from the phone's region) for totals, budgets and the
+  assistant; transactions and accounts keep their own currency, with correct decimals (¥1,200,
+  KWD 12.500) and Indian grouping only for rupees
 - Edit transactions, manage accounts and categories; every source message is inspectable
 - Optional AI: read unusual messages, categorise leftovers, chat with your finances
 - On-device Gemma 4 / Qwen3 picked for your phone's RAM and chip, downloaded once over Wi-Fi
@@ -133,6 +138,10 @@ produced or merged into, so merges are explainable and reversible.
 | SMS ↔ email (different channels), no merchant/account conflict | +0.3 (≤30 min), +0.15 (≤3 h) |
 | Same sender already reported it | −0.35 (two real ₹20 chais) |
 
+Candidates must have the same amount **in the same currency**. A foreign spend whose alert states
+the home-currency equivalent ("USD 12.50 (INR 1,045.30)") also matches a rupee-only alert for
+₹1,045.30, and the merge records the conversion.
+
 ≥ 0.75 merges automatically; 0.5–0.75 creates a *possible duplicate* the user confirms.
 Merchant tokens include brand aliases for the legal names banks print (BUNDL → Swiggy,
 Eternal → Zomato, …). When a merchant receipt email (Swiggy, Amazon, Uber…) merges
@@ -140,6 +149,27 @@ into a bank alert, its merchant name replaces the bank's and the category is re-
 unless the user set one.
 A debit from one own account and an equal credit to another within an hour is
 marked as a self-transfer and excluded from spend/income.
+
+## Currencies
+
+Amounts are stored as integers in each currency's minor unit (`lib/core/currency.dart`, decimals
+from `intl`'s CLDR data: paise and cents, whole yen/won/dong/rupiah, fils for KWD/BHD/OMR), with an
+ISO 4217 code on every transaction and account (schema v4; rows from v1.0 are INR).
+
+- **Home currency.** Chosen at onboarding (defaulted from the phone's region) and in
+  Settings → Money → Currency. Existing installs keep INR. Totals, budgets, charts, notifications,
+  the assistant and its tools use it. Budgets remember their currency and pause if you switch.
+- **Foreign transactions.** Pckt has no server and never fetches exchange rates. A message that
+  states the home-currency equivalent is stored with both amounts and counts at once. Otherwise the
+  transaction keeps its own currency, is shown with "not in totals", and you add what the bank
+  charged (or a rate) from the transaction; until then it is left out of totals rather than guessed.
+  The dashboard says how many are waiting.
+- **Parsing.** Markers are read with the amount: `Rs`/`₹`/`INR`, ISO codes before or after the
+  number, `$ US$ S$ A$ C$ NZ$ R$ € £ ¥ ₩ ₱ ₫ ฿ ₦ ₺ ৳ RM Rp KSh`. A bare `$` or `Rs` means the home
+  dollar/rupee when it is one (USD/INR otherwise). Alerts from senders Pckt doesn't know still parse
+  at a lower confidence and are marked for review.
+- **Supported:** INR, AED, SAR, QAR, KWD, OMR, BHD, SGD, MYR, USD, GBP, CAD, AUD, NZD, EUR, BDT, PKR,
+  LKR, NPR, IDR, PHP, VND, THB, NGN, KES, ZAR, BRL, MXN, TRY, JPY, KRW.
 
 ## Email
 
@@ -252,7 +282,8 @@ model that fits (`lib/llm/on_device/model_catalog.dart`):
 `SmsAlertReceiver.kt` listens for `SMS_RECEIVED` (permission `RECEIVE_SMS`, asked together with
 `READ_SMS`). If a message comes from a known bank DLT sender (`VM-HDFCBK`, `AD-ICICIT-S`, not
 `-P` promos) and has a completed debit/credit verb plus an amount, it posts *"₹250 debited · HDFC —
-Tap to review"* on the **Transaction alerts** channel. Tapping opens Pckt, which syncs SMS on resume;
+Tap to review"* (or *"USD 12.50 debited · HDFC"* for a spend abroad) on the **Transaction alerts**
+channel; it reads the home currency from `flutter.currency.home`. Tapping opens Pckt, which syncs SMS on resume;
 the receiver itself stores nothing, so the Dart pipeline stays the source of truth. Turn it off in
 Settings → SMS → *Instant alerts* (pref `sms.alerts`, read natively as `flutter.sms.alerts`).
 Android 13+ also needs the notification permission, which Pckt asks for once.
@@ -282,13 +313,15 @@ twice is a no-op (content-hashed id), and a message that also arrives by email i
 
 Settings → Data:
 
-- **Export transactions (CSV)** — date, amount (₹), direction, merchant, category, account, mode,
-  reference, note, sources; UTF-8 with BOM so Excel shows ₹ and names correctly.
+- **Export transactions (CSV)** — date, amount, direction, merchant, category, account, mode,
+  reference, note, sources, currency, converted amount and its currency (amounts use the currency's
+  decimals); UTF-8 with BOM so Excel shows symbols and names correctly.
 - **Back up everything** — a JSON dump of every table (accounts, categories, transactions, raw
   messages, merchant rules and anything added later) with format and schema versions.
 - **Restore from backup** — validates the file (format, schema version not newer than the app,
   required tables), shows what it contains, and after confirmation replaces all data in a single
-  DB transaction (nothing changes if anything fails).
+  DB transaction (nothing changes if anything fails). Backups from v1.0 restore with every amount in
+  INR.
 
 Files go out through the share sheet or a *Save to device* dialog.
 ### Keeping it responsive (`lib/llm/on_device/`)
@@ -388,4 +421,7 @@ launch window; iOS uses the `LaunchBackground` named colour).
       LLM fallback for unreadable messages; agent chat with tools over the local DB
 - [x] Phase 5 — budgets, recurring payments, editing, SQLCipher encryption, app lock, on-device Gemma
       models, iOS Shortcuts / share bridge, real-time SMS alerts, CSV export & JSON backup
-- [ ] Next — iOS testing, more bank formats, Qualcomm NPU opt-in, F-Droid
+- [x] v1.1 — multi-currency: home currency, per-transaction and per-account currency, foreign card
+      spends, currency-agnostic SMS amounts for alerts from outside India
+- [ ] Next — bank sender lists and formats for the Gulf, UK, US and Singapore, iOS testing, Qualcomm
+      NPU opt-in, F-Droid
