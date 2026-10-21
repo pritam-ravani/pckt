@@ -1,5 +1,6 @@
 import 'package:intl/intl.dart';
 
+import '../../core/format.dart';
 import '../llm_client.dart';
 import 'finance_tools.dart';
 import 'tool_result_budget.dart';
@@ -36,14 +37,16 @@ class FinanceAgent {
 
   String systemPrompt() {
     final today = now();
+    final home = currencyFor(Currencies.home);
+    final example = money(12345600);
     return '''
-You are Pckt's money assistant for a user in India. Their transactions were read from bank/UPI/card SMS and emails and are stored only on their phone; you can query them with tools.
+You are Pckt's money assistant. The user's transactions were read from bank, card and payment SMS and emails and are stored only on their phone; you can query them with tools. Their home currency is ${home?.name ?? Currencies.home} (${Currencies.home}).
 
 Today is ${DateFormat('EEEE, d MMMM yyyy').format(today)} (${DateFormat('yyyy-MM-dd').format(today)}).
 
 - Never invent or estimate numbers. Every amount, count or date you state must come from a tool result in this conversation. If the data doesn't answer the question, say so.
 - Use spending_summary for totals and breakdowns, query_transactions for specific payments, find_recurring for subscriptions. Transfers between the user's own accounts are not spending.
-- Write amounts in rupees with Indian digit grouping, e.g. ₹1,23,456 (drop paise unless they matter). Prefer the *_formatted fields.
+- Totals are in ${Currencies.home}; write amounts like $example (drop the decimals unless they matter) and prefer the *_formatted fields. A row with its own "currency" was paid in that currency: name it, and never convert it yourself. Rows marked in_totals false have no ${Currencies.home} amount yet and are left out of totals; say so when it matters (not_in_totals counts them).
 - "This month" means from the 1st of the current month to today; "last month" is the full previous calendar month.
 - Be concise: lead with the answer, then at most a few bullets. Use **bold** for key figures. No tables, no headings.
 - Only use recategorize when the user asks to change categories; the app will ask them to confirm.

@@ -32,7 +32,9 @@ class RecategorizeProposal {
   /// Exact merchant names to remember as rules (when matched by merchant).
   final List<String> learnMerchants;
 
-  int get total => txns.fold(0, (s, t) => s + t.amountMinor);
+  /// In the home currency; foreign payments without a converted amount
+  /// add nothing.
+  int get total => txns.fold(0, (s, t) => s + (t.homeMinor ?? 0));
 
   String get description {
     final names = txns.map((t) => t.merchant ?? t.counterparty ?? 'Unknown').toSet().take(3).join(', ');
@@ -43,7 +45,9 @@ class RecategorizeProposal {
 typedef ConfirmRecategorize = Future<bool> Function(RecategorizeProposal proposal);
 
 /// Read-mostly tools over the local database. Results carry structured
-/// fields only — never raw SMS/email bodies.
+/// fields only — never raw SMS/email bodies. Amounts and totals are in the
+/// home currency; a foreign transaction also reports its own currency and
+/// is left out of totals until it has a home-currency amount.
 class FinanceTools {
   FinanceTools(this.db, {DateTime Function()? now}) : now = now ?? DateTime.now;
 
@@ -58,13 +62,14 @@ class FinanceTools {
     'to': {'type': 'string', 'description': 'End date YYYY-MM-DD (inclusive). Defaults to today.'},
   };
 
-  List<LlmTool> get specs => const [
+  List<LlmTool> get specs => [
     LlmTool(
       name: 'query_transactions',
       description:
           'Search transactions. Returns matching rows (newest first unless sort=amount) plus totals over ALL matches. '
-          'Amounts are in rupees.',
-      parameters: {
+          'Amounts are in ${Currencies.home} unless a row has its own "currency"; min/max_amount and totals use '
+          '${Currencies.home}.',
+      parameters: const {
         'type': 'object',
         'properties': {
           ..._dateRange,
@@ -93,7 +98,7 @@ class FinanceTools {
       description:
           'Totals grouped by category, merchant, month, day or account over a date range. Transfers are excluded. '
           'Use this for "where did my money go", comparisons and trends.',
-      parameters: {
+      parameters: const {
         'type': 'object',
         'properties': {
           ..._dateRange,
@@ -110,12 +115,12 @@ class FinanceTools {
         'required': ['group_by'],
       },
     ),
-    LlmTool(
+    const LlmTool(
       name: 'list_categories',
       description: 'All category names, marking which are income categories.',
       parameters: {'type': 'object', 'properties': <String, dynamic>{}},
     ),
-    LlmTool(
+    const LlmTool(
       name: 'list_accounts',
       description: 'Bank accounts, cards and wallets detected from messages.',
       parameters: {'type': 'object', 'properties': <String, dynamic>{}},
@@ -125,7 +130,7 @@ class FinanceTools {
       description:
           'Detects subscriptions and recurring payments: same merchant with a similar amount at a weekly, '
           'monthly or quarterly cadence.',
-      parameters: {
+      parameters: const {
         'type': 'object',
         'properties': {
           'months': {'type': 'integer', 'description': 'How many months of history to scan. Default 6.'},
@@ -137,7 +142,7 @@ class FinanceTools {
       description:
           'Change the category of transactions, by ids or by merchant. The user is asked to confirm in the app '
           'before anything changes; the result says whether they approved.',
-      parameters: {
+      parameters: const {
         'type': 'object',
         'properties': {
           'transaction_ids': {
@@ -192,14 +197,19 @@ class FinanceTools {
 
   Future<List<TxnView>> _txns(DateTime from, DateTime to) => db.watchTxns(from: from, to: to).first;
 
-  static double _rupees(int minor) => minor / 100;
+  /// Home-currency minor units → major units.
+  static double _major(int minor) => toMajor(minor, Currencies.home);
 
   Map<String, dynamic> _row(TxnView v) {
     final t = v.txn;
     return {
       'id': t.id,
       'date': _day.format(t.occurredAt),
-      'amount': _rupees(t.amountMinor),
+      'amount': toMajor(t.amountMinor, t.currency),
+      if (t.isForeign) ...{
+        'currency': t.currency,
+        if (t.homeMinor case final home?) 'home_amount': _major(home) else 'in_totals': false,
+      },
       'direction': t.direction.name,
       'merchant': ?t.merchant,
       'counterparty': ?t.counterparty,
@@ -229,22 +239,27 @@ class FinanceTools {
       if (direction != null && t.direction.name != direction) return false;
       if (category != null && (v.category?.name.toLowerCase() ?? 'uncategorised') != category) return false;
       if (text != null && !'${t.merchant ?? ''} ${t.counterparty ?? ''}'.toLowerCase().contains(text)) return false;
-      if (min != null && t.amountMinor < min * 100) return false;
-      if (max != null && t.amountMinor > max * 100) return false;
+      final home = t.homeMinor;
+      if ((min != null || max != null) && home == null) return false;
+      if (min != null && home! < toMinor(min, Currencies.home)) return false;
+      if (max != null && home! > toMinor(max, Currencies.home)) return false;
       return true;
     }).toList();
-    if (a['sort'] == 'amount') matches.sort((x, y) => y.txn.amountMinor.compareTo(x.txn.amountMinor));
+    if (a['sort'] == 'amount') matches.sort((x, y) => (y.txn.homeMinor ?? 0).compareTo(x.txn.homeMinor ?? 0));
 
-    int sum(TxnDirection d) => matches.where((v) => v.txn.direction == d).fold(0, (s, v) => s + v.txn.amountMinor);
+    int sum(TxnDirection d) => matches.where((v) => v.txn.direction == d).fold(0, (s, v) => s + (v.txn.homeMinor ?? 0));
+    final unconverted = matches.where((v) => v.txn.homeMinor == null).length;
     final debit = sum(TxnDirection.debit), credit = sum(TxnDirection.credit);
     return ToolOutcome({
       'from': _day.format(from),
       'to': _day.format(to.subtract(const Duration(days: 1))),
       'matched': matches.length,
-      'total_debit': _rupees(debit),
+      'currency': Currencies.home,
+      'total_debit': _major(debit),
       'total_debit_formatted': money(debit),
-      'total_credit': _rupees(credit),
+      'total_credit': _major(credit),
       'total_credit_formatted': money(credit),
+      if (unconverted > 0) 'not_in_totals': unconverted,
       'returned': matches.length < limit ? matches.length : limit,
       'transactions': [for (final v in matches.take(limit)) _row(v)],
     }, 'Looked at ${matches.length} transaction${matches.length == 1 ? '' : 's'}');
@@ -254,7 +269,9 @@ class FinanceTools {
     final (from, to) = _range(a);
     final groupBy = asString(a['group_by']) ?? 'category';
     final direction = asString(a['direction']) == 'credit' ? TxnDirection.credit : TxnDirection.debit;
-    final txns = (await _txns(from, to)).where((v) => !v.txn.isTransfer && v.txn.direction == direction).toList();
+    final all = (await _txns(from, to)).where((v) => !v.txn.isTransfer && v.txn.direction == direction).toList();
+    // Foreign payments without a home-currency amount can't be added up.
+    final txns = all.where((v) => v.txn.homeMinor != null).toList();
 
     String key(TxnView v) => switch (groupBy) {
       'merchant' => v.txn.merchant ?? v.txn.counterparty ?? 'Unknown',
@@ -269,28 +286,30 @@ class FinanceTools {
     final groups = groupBy;
     final byKey = txns.groupListsBy(key);
     final rows = [
-      for (final e in byKey.entries) (e.key, e.value.fold<int>(0, (s, v) => s + v.txn.amountMinor), e.value.length),
+      for (final e in byKey.entries) (e.key, e.value.fold<int>(0, (s, v) => s + v.txn.homeMinor!), e.value.length),
     ];
     if (groups == 'month' || groups == 'day') {
       rows.sort((x, y) => x.$1.compareTo(y.$1));
     } else {
       rows.sort((x, y) => y.$2.compareTo(x.$2));
     }
-    final total = txns.fold<int>(0, (s, v) => s + v.txn.amountMinor);
+    final total = txns.fold<int>(0, (s, v) => s + v.txn.homeMinor!);
     final shown = rows.take(groups == 'day' ? 62 : 30).toList();
     return ToolOutcome({
       'from': _day.format(from),
       'to': _day.format(to.subtract(const Duration(days: 1))),
       'direction': direction.name,
       'group_by': groups,
-      'total': _rupees(total),
+      'currency': Currencies.home,
+      'total': _major(total),
       'total_formatted': money(total),
       'transaction_count': txns.length,
+      if (all.length > txns.length) 'not_in_totals': all.length - txns.length,
       'groups': [
         for (final (k, sum, n) in shown)
           {
             'key': k,
-            'total': _rupees(sum),
+            'total': _major(sum),
             'total_formatted': money(sum),
             'count': n,
             if (total > 0) 'share_pct': (sum * 1000 / total).round() / 10,
@@ -331,20 +350,21 @@ class FinanceTools {
     final monthly = monthlyTotalMinor(found);
     return ToolOutcome({
       'scanned_from': _day.format(from),
-      'estimated_monthly_total': _rupees(monthly),
+      'currency': Currencies.home,
+      'estimated_monthly_total': _major(monthly),
       'estimated_monthly_total_formatted': money(monthly),
       'recurring': [
         for (final r in found)
           {
             'merchant': r.name,
             'cadence': r.cadence,
-            'typical_amount': _rupees(r.typicalMinor),
+            'typical_amount': _major(r.typicalMinor),
             'typical_amount_formatted': money(r.typicalMinor),
             'occurrences': r.count,
             'last_date': _day.format(r.last),
             'next_expected': _day.format(r.next),
             'category': ?r.category?.name,
-            'monthly_cost': _rupees(r.monthlyCostMinor.round()),
+            'monthly_cost': _major(r.monthlyCostMinor.round()),
           },
       ],
     }, 'Scanned ${txns.length} payments for patterns');

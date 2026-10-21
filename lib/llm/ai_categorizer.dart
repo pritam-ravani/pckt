@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:intl/intl.dart';
 
+import '../core/currency.dart';
 import '../data/db/database.dart';
 import 'llm_client.dart';
 import 'llm_json.dart';
@@ -62,7 +63,7 @@ class AiCategorizer {
     final expense = cats.where((c) => !c.isIncome && !_reserved.contains(c.name)).map((c) => c.name);
     final income = cats.where((c) => c.isIncome).map((c) => c.name);
     return '''
-You categorise personal transactions for a user in India. Merchants may be UPI VPAs or abbreviated bank descriptors.
+You categorise a user's personal transactions, mostly from Indian banks but possibly from anywhere. Merchants may be UPI VPAs, card descriptors or abbreviated bank descriptors.
 Expense categories (for debits): ${expense.join(', ')}
 Income categories (for credits): ${income.join(', ')}
 
@@ -112,7 +113,8 @@ Reply with ONLY JSON: {"results":[{"id":<id>,"category":"<name>","confidence":<0
             'id': t.id,
             'merchant': ?t.merchant,
             'counterparty': ?t.counterparty,
-            'amount': t.amountMinor / 100,
+            'amount': toMajor(t.amountMinor, t.currency),
+            if (t.isForeign) 'currency': t.currency,
             'direction': t.direction.name,
             'mode': t.mode.name,
             'date': _date.format(t.occurredAt),
