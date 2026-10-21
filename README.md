@@ -421,7 +421,7 @@ launch window; iOS uses the `LaunchBackground` named colour).
       LLM fallback for unreadable messages; agent chat with tools over the local DB
 - [x] Phase 5 — budgets, recurring payments, editing, SQLCipher encryption, app lock, on-device Gemma
       models, iOS Shortcuts / share bridge, real-time SMS alerts, CSV export & JSON backup
-- [x] v1.1 — multi-currency: home currency, per-transaction and per-account currency, foreign card
+- [x] v1.0.1 — multi-currency: home currency, per-transaction and per-account currency, foreign card
       spends, currency-agnostic SMS amounts for alerts from outside India
 - [ ] Next — bank sender lists and formats for the Gulf, UK, US and Singapore, iOS testing, Qualcomm
       NPU opt-in, F-Droid
