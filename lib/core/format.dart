@@ -1,15 +1,16 @@
 import 'package:intl/intl.dart';
 
-final _inr0 = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
-final _inr2 = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 2);
-final _compact = NumberFormat.compactCurrency(locale: 'en_IN', symbol: '₹', decimalDigits: 1);
+import 'currency.dart';
 
-/// ₹1,23,456 — drops paise when they're zero.
-String money(int minor, {bool forceDecimals = false}) =>
-    (forceDecimals || minor % 100 != 0 ? _inr2 : _inr0).format(minor / 100);
+export 'currency.dart';
 
-/// ₹1.2L, ₹45K — for chart axes and tight spaces.
-String moneyCompact(int minor) => minor.abs() < 100000 ? _inr0.format(minor / 100) : _compact.format(minor / 100);
+/// ₹1,23,456 · $1,234.50 · ¥1,200 — [minor] units of [currency] (the home
+/// currency by default). Drops the fraction when it's zero.
+String money(int minor, {String? currency, bool forceDecimals = false}) =>
+    formatMoney(minor, currency: currency, forceDecimals: forceDecimals);
+
+/// ₹1.2L, $45K — for chart axes and tight spaces.
+String moneyCompact(int minor, {String? currency}) => formatMoneyCompact(minor, currency: currency);
 
 String monthLabel(DateTime m) => DateFormat('MMMM yyyy').format(m);
 String monthShort(DateTime m) => DateFormat('MMM').format(m);
