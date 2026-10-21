@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/currency.dart';
 import '../db/database.dart';
 
 /// Thrown when a file is not a usable Pckt backup. [message] is user-facing.
@@ -33,7 +34,8 @@ class BackupSummary {
 /// values), so it round-trips exactly and automatically covers tables added
 /// in later schema versions. Restore accepts backups from the same or an
 /// older schema; unknown columns are dropped and missing ones take their
-/// defaults.
+/// defaults (so a backup from before v4 restores with every amount in INR,
+/// which is what it was).
 class DataExport {
   DataExport(this.db);
 
@@ -56,11 +58,18 @@ class DataExport {
     'reference',
     'note',
     'sources',
+    // Added with currencies; appended so older column positions still hold.
+    'currency',
+    'converted_amount',
+    'converted_currency',
   ];
 
   // ------------------------------------------------------------------ CSV
 
-  /// All transactions, oldest first, one row each. Amounts are in rupees.
+  /// All transactions, oldest first, one row each. `amount` is in the row's
+  /// `currency`, with that currency's decimals (none for JPY, three for
+  /// KWD); `converted_amount` is the same payment in `converted_currency`
+  /// when known.
   Future<String> transactionsCsv() async {
     final cats = {for (final c in await db.allCategories()) c.id: c.name};
     final accts = {for (final a in await db.allAccounts()) a.id: a};
@@ -77,7 +86,7 @@ class DataExport {
       for (final t in txns)
         [
           fmt.format(t.occurredAt),
-          (t.amountMinor / 100).toStringAsFixed(2),
+          plainAmount(t.amountMinor, t.currency),
           t.direction.name,
           t.merchant ?? '',
           cats[t.categoryId] ?? '',
@@ -89,6 +98,11 @@ class DataExport {
           t.reference ?? '',
           t.note ?? '',
           (sources[t.id]?.toList() ?? const <String>[]).join(';'),
+          t.currency,
+          t.convertedMinor == null || t.convertedCurrency == null
+              ? ''
+              : plainAmount(t.convertedMinor!, t.convertedCurrency!),
+          t.convertedMinor == null ? '' : t.convertedCurrency ?? '',
         ],
     ];
     return encodeCsv(rows);
@@ -207,8 +221,8 @@ class DataExport {
 
 // ------------------------------------------------------------------- CSV io
 
-/// RFC 4180 CSV with CRLF line endings and a UTF-8 BOM so Excel reads ₹ and
-/// non-ASCII names correctly.
+/// RFC 4180 CSV with CRLF line endings and a UTF-8 BOM so Excel reads
+/// non-ASCII names and symbols correctly.
 String encodeCsv(List<List<String>> rows) {
   String cell(String s) =>
       RegExp(r'[",\r\n]').hasMatch(s) || s.startsWith(' ') || s.endsWith(' ') ? '"${s.replaceAll('"', '""')}"' : s;
