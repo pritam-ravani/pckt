@@ -8,7 +8,7 @@ import '../activity/transaction_sheet.dart';
 /// Snackbar describing what happened to text shared to Pckt.
 void showShareOutcome(BuildContext context, ShareOutcome o) {
   String describe(Transaction t) =>
-      '${money(t.amountMinor)} ${t.direction == TxnDirection.debit ? 'spent' : 'received'}'
+      '${money(t.amountMinor, currency: t.currency)} ${t.direction == TxnDirection.debit ? 'spent' : 'received'}'
       '${t.merchant == null ? '' : ' · ${t.merchant}'}';
   final txn = o.txn;
   final text = switch (o.kind) {

@@ -9,7 +9,8 @@ import '../../providers.dart';
 import '../../ui/widgets.dart';
 import 'transaction_sheet.dart';
 
-enum ActivityFilter { all, spent, received, review, transfers }
+/// [foreign] = other currencies; its chip shows only when there are any.
+enum ActivityFilter { all, spent, received, review, transfers, foreign }
 
 class ActivityScreen extends ConsumerStatefulWidget {
   const ActivityScreen({super.key, this.initialFilter});
@@ -39,6 +40,7 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
       ActivityFilter.received => t.direction == TxnDirection.credit && !t.isTransfer,
       ActivityFilter.review => t.status == TxnStatus.needsReview,
       ActivityFilter.transfers => t.isTransfer,
+      ActivityFilter.foreign => t.isForeign,
     };
     if (!ok) return false;
     if (_query.isEmpty) return true;
@@ -49,13 +51,14 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
       t.note,
       v.category?.name,
       v.account?.name,
-      (t.amountMinor ~/ 100).toString(),
+      (t.amountMinor ~/ minorPerUnit(t.currency)).toString(),
     ].any((s) => s?.toLowerCase().contains(q) ?? false);
   }
 
   @override
   Widget build(BuildContext context) {
     final txns = ref.watch(allTxnsProvider);
+    final anyForeign = _filter == ActivityFilter.foreign || (txns.value?.any((v) => v.txn.isForeign) ?? false);
     return Scaffold(
       body: SafeArea(
         bottom: false,
@@ -82,20 +85,22 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 children: [
                   for (final f in ActivityFilter.values)
-                    Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: ChoiceChip(
-                        label: Text(switch (f) {
-                          ActivityFilter.all => 'All',
-                          ActivityFilter.spent => 'Spent',
-                          ActivityFilter.received => 'Received',
-                          ActivityFilter.review => 'Needs review',
-                          ActivityFilter.transfers => 'Transfers',
-                        }),
-                        selected: _filter == f,
-                        onSelected: (_) => setState(() => _filter = f),
+                    if (f != ActivityFilter.foreign || anyForeign)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: ChoiceChip(
+                          label: Text(switch (f) {
+                            ActivityFilter.all => 'All',
+                            ActivityFilter.spent => 'Spent',
+                            ActivityFilter.received => 'Received',
+                            ActivityFilter.review => 'Needs review',
+                            ActivityFilter.transfers => 'Transfers',
+                            ActivityFilter.foreign => 'Other currencies',
+                          }),
+                          selected: _filter == f,
+                          onSelected: (_) => setState(() => _filter = f),
+                        ),
                       ),
-                    ),
                 ],
               ),
             ),
@@ -153,7 +158,7 @@ class _GroupedList extends StatelessWidget {
                   x.txn.occurredAt.month == d.month &&
                   x.txn.occurredAt.day == d.day,
             )
-            .fold<int>(0, (s, x) => s + x.txn.amountMinor);
+            .fold<int>(0, (s, x) => s + (x.txn.homeMinor ?? 0));
         items.add((d, spent));
       }
       items.add(v);

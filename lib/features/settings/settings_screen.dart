@@ -10,6 +10,7 @@ import '../../data/db/database.dart';
 import '../../ingestion/email/email_sync.dart';
 import '../../providers.dart';
 import '../../ui/widgets.dart';
+import 'currency_tile.dart';
 import 'data_section.dart';
 import '../budgets/budget_providers.dart';
 import 'email_source_card.dart';
@@ -47,6 +48,7 @@ class SettingsScreen extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
               child: Column(
                 children: [
+                  const HomeCurrencyTile(),
                   ListTile(
                     leading: const Icon(PhosphorIconsRegular.target),
                     title: const Text('Budgets'),

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/icons.dart';
@@ -7,8 +6,9 @@ import '../../core/theme/icons.dart';
 import '../../core/format.dart';
 import '../../core/theme/palette.dart';
 import '../../data/db/database.dart';
-import '../../ingestion/parser/text_utils.dart';
 import '../../providers.dart';
+import '../../ui/amount_field.dart';
+import '../../ui/currency_picker.dart';
 import '../../ui/widgets.dart';
 import 'category_picker.dart';
 
@@ -29,6 +29,8 @@ class _AddSheet extends ConsumerStatefulWidget {
 class _AddSheetState extends ConsumerState<_AddSheet> {
   final _amount = TextEditingController();
   final _merchant = TextEditingController();
+  final _converted = TextEditingController();
+  var _currency = Currencies.home;
   var _direction = TxnDirection.debit;
   int? _categoryId;
   var _at = DateTime.now();
@@ -37,16 +39,22 @@ class _AddSheetState extends ConsumerState<_AddSheet> {
   void dispose() {
     _amount.dispose();
     _merchant.dispose();
+    _converted.dispose();
     super.dispose();
   }
 
   Future<void> _save() async {
-    final minor = parseMinor(_amount.text);
+    final minor = parseAmountInput(_amount.text, currency: _currency);
     if (minor == null || minor <= 0) return;
+    final converted = _currency == Currencies.home
+        ? null
+        : parseAmountInput(_converted.text, currency: Currencies.home);
     await ref
         .read(databaseProvider)
         .addManual(
           amountMinor: minor,
+          currency: _currency,
+          convertedMinor: converted != null && converted > 0 ? converted : null,
           direction: _direction,
           at: _at,
           merchant: _merchant.text.trim().isEmpty ? null : _merchant.text.trim(),
@@ -85,20 +93,34 @@ class _AddSheetState extends ConsumerState<_AddSheet> {
               }),
             ),
             const SizedBox(height: 20),
-            TextField(
+            AmountField(
               controller: _amount,
               autofocus: true,
-              textAlign: TextAlign.center,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}'))],
-              style: context.text.displaySmall?.copyWith(color: color),
-              decoration: InputDecoration(
-                hintText: '0',
-                prefixText: '₹ ',
-                prefixStyle: context.text.displaySmall?.copyWith(color: context.colors.onSurfaceVariant),
-                filled: false,
-              ),
+              color: color,
+              currency: _currency,
+              onCurrencyTap: () async {
+                final c = await showCurrencyPicker(context, selected: _currency);
+                if (c == null || c == _currency) return;
+                setState(() {
+                  _currency = c;
+                  _amount.clear();
+                  _converted.clear();
+                });
+              },
             ),
+            if (_currency != Currencies.home) ...[
+              const SizedBox(height: 12),
+              TextField(
+                controller: _converted,
+                keyboardType: TextInputType.numberWithOptions(decimal: currencyDigits(Currencies.home) > 0),
+                inputFormatters: [AmountInputFormatter(currency: Currencies.home)],
+                decoration: InputDecoration(
+                  labelText: 'In ${Currencies.home} (optional)',
+                  helperText: 'Without it, this stays out of your totals until you add it.',
+                  prefixText: '${currencySymbol(Currencies.home)} ',
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
             TextField(
               controller: _merchant,
@@ -133,7 +155,7 @@ class _AddSheetState extends ConsumerState<_AddSheet> {
             ListenableBuilder(
               listenable: _amount,
               builder: (_, _) => FilledButton(
-                onPressed: (parseMinor(_amount.text) ?? 0) > 0 ? _save : null,
+                onPressed: (parseAmountInput(_amount.text, currency: _currency) ?? 0) > 0 ? _save : null,
                 child: const Text('Save'),
               ),
             ),

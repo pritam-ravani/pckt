@@ -27,6 +27,7 @@ abstract final class PhosphorIconsFill {
   static const gearSix = IconData(0xe272, fontFamily: 'PhosphorFill', fontPackage: 'phosphor_flutter');
   static const gift = IconData(0xe276, fontFamily: 'PhosphorFill', fontPackage: 'phosphor_flutter');
   static const gitMerge = IconData(0xe280, fontFamily: 'PhosphorFill', fontPackage: 'phosphor_flutter');
+  static const globeHemisphereWest = IconData(0xe28c, fontFamily: 'PhosphorFill', fontPackage: 'phosphor_flutter');
   static const graduationCap = IconData(0xe62c, fontFamily: 'PhosphorFill', fontPackage: 'phosphor_flutter');
   static const handCoins = IconData(0xea8c, fontFamily: 'PhosphorFill', fontPackage: 'phosphor_flutter');
   static const heartbeat = IconData(0xe2ac, fontFamily: 'PhosphorFill', fontPackage: 'phosphor_flutter');
@@ -66,6 +67,7 @@ abstract final class PhosphorIconsRegular {
   static const chatText = IconData(0xe17a, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
   static const clock = IconData(0xe19a, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
   static const clockCounterClockwise = IconData(0xe1a0, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
+  static const coins = IconData(0xe78e, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
   static const cpu = IconData(0xe610, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
   static const deviceMobile = IconData(0xe1e0, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
   static const downloadSimple = IconData(0xe20c, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');

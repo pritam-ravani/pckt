@@ -139,20 +139,47 @@ class TransactionTile extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 12),
-            Text(
-              '${credit ? '+' : '−'}${money(t.amountMinor)}',
-              style: context.text.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: t.isTransfer
-                    ? context.colors.onSurfaceVariant
-                    : credit
-                    ? Palette.income
-                    : context.colors.onSurface,
-                fontFeatures: const [FontFeature.tabularFigures()],
-              ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  '${credit ? '+' : '−'}${money(t.amountMinor, currency: t.currency)}',
+                  style: context.text.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: t.isTransfer
+                        ? context.colors.onSurfaceVariant
+                        : credit
+                        ? Palette.income
+                        : context.colors.onSurface,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+                if (t.isForeign) ForeignAmountNote(txn: t),
+              ],
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Under a foreign amount: what it came to at home ("≈ ₹1,045.30"), or that
+/// it isn't counted in totals yet.
+class ForeignAmountNote extends StatelessWidget {
+  const ForeignAmountNote({super.key, required this.txn, this.style});
+
+  final Transaction txn;
+  final TextStyle? style;
+
+  @override
+  Widget build(BuildContext context) {
+    final home = txn.homeMinor;
+    return Text(
+      home == null ? 'not in totals' : '≈ ${money(home)}',
+      style: (style ?? context.text.labelSmall)?.copyWith(
+        color: home == null ? Palette.amber : context.colors.onSurfaceVariant,
+        fontFeatures: const [FontFeature.tabularFigures()],
       ),
     );
   }

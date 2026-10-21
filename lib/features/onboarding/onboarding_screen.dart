@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/icons.dart';
 
+import '../../core/currency.dart';
 import '../../core/theme/palette.dart';
 import '../../providers.dart';
 import '../../ui/widgets.dart';
+import '../settings/currency_tile.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
@@ -47,8 +49,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               Text('Your money,\ntracked for you.', style: context.text.displaySmall?.copyWith(height: 1.05)),
               const SizedBox(height: 14),
               Text(
-                'Pckt reads bank & UPI alerts, sorts every rupee into categories, '
-                'and never counts the same payment twice.',
+                'Pckt reads bank, card & UPI alerts, sorts every payment into categories, '
+                'and never counts the same payment twice. Built India-first; works with 30+ currencies.',
                 style: context.text.bodyLarge?.copyWith(color: context.colors.onSurfaceVariant, height: 1.4),
               ),
               const SizedBox(height: 24),
@@ -59,6 +61,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               const _Point(icon: PhosphorIconsFill.gitMerge, text: 'Smart dedup across SMS and email'),
               const _Point(icon: PhosphorIconsFill.sparkle, text: 'Bring your own AI for insights (coming soon)'),
               const Spacer(),
+              const _CurrencyRow(),
+              const SizedBox(height: 12),
               if (supported) ...[
                 Text(
                   'Import history',
@@ -96,6 +100,29 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// The home currency, defaulted from the device locale, with a way to change it.
+class _CurrencyRow extends ConsumerWidget {
+  const _CurrencyRow();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final code = ref.watch(homeCurrencyProvider);
+    return Row(
+      children: [
+        Icon(PhosphorIconsRegular.coins, size: 20, color: context.colors.onSurfaceVariant),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            'Currency: ${currencySymbol(code)} ${currencyFor(code)?.name ?? code}',
+            style: context.text.bodyMedium,
+          ),
+        ),
+        TextButton(onPressed: () => changeHomeCurrency(context, ref, confirm: false), child: const Text('Change')),
+      ],
     );
   }
 }

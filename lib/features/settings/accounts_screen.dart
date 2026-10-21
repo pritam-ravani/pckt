@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/currency.dart';
 import '../../core/theme/icons.dart';
 import '../../core/theme/palette.dart';
 import '../../data/db/database.dart';
 import '../../providers.dart';
+import '../../ui/currency_picker.dart';
 import '../../ui/widgets.dart';
 import 'manage_widgets.dart';
 
@@ -95,6 +97,7 @@ class _AccountEditorState extends ConsumerState<_AccountEditor> {
   late var _kind = widget.account?.kind ?? AccountKind.cash;
   late var _color = widget.account?.color ?? Palette.categories[5].toARGB32();
   late var _archived = widget.account?.archived ?? false;
+  late var _currency = widget.account?.currency ?? Currencies.home;
 
   @override
   void dispose() {
@@ -108,9 +111,9 @@ class _AccountEditorState extends ConsumerState<_AccountEditor> {
     final db = ref.read(databaseProvider);
     final a = widget.account;
     if (a == null) {
-      await db.addAccount(name: name, kind: _kind, color: _color);
+      await db.addAccount(name: name, kind: _kind, color: _color, currency: _currency);
     } else {
-      await db.updateAccount(a.id, name: name, kind: _kind, color: _color, archived: _archived);
+      await db.updateAccount(a.id, name: name, kind: _kind, color: _color, archived: _archived, currency: _currency);
     }
     if (mounted) Navigator.pop(context);
   }
@@ -154,7 +157,19 @@ class _AccountEditorState extends ConsumerState<_AccountEditor> {
                   ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+              leading: const Icon(PhosphorIconsRegular.coins),
+              title: const Text('Currency'),
+              subtitle: Text(currencyFor(_currency)?.toString() ?? _currency),
+              trailing: const Icon(PhosphorIconsBold.caretRight, size: 16),
+              onTap: () async {
+                final c = await showCurrencyPicker(context, selected: _currency, title: 'Account currency');
+                if (c != null) setState(() => _currency = c);
+              },
+            ),
+            const SizedBox(height: 8),
             Text('Colour', style: context.text.labelLarge),
             const SizedBox(height: 8),
             ColorSwatchPicker(selected: _color, onSelected: (c) => setState(() => _color = c)),

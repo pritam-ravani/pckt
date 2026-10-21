@@ -48,6 +48,10 @@ class DashboardScreen extends ConsumerWidget {
                           const SizedBox(height: 12),
                           BudgetCard(hasSpending: stats.spent > 0),
                           if (review > 0) ...[const SizedBox(height: 12), _ReviewBanner(count: review)],
+                          if (stats.unconverted > 0) ...[
+                            const SizedBox(height: 12),
+                            _ForeignBanner(count: stats.unconverted),
+                          ],
                           if (!sync.enabled && list.isEmpty) ...[const SizedBox(height: 12), const _ConnectSmsCard()],
                           const SizedBox(height: 20),
                           if (stats.categories.isNotEmpty) ...[
@@ -202,6 +206,31 @@ class _ReviewBanner extends StatelessWidget {
   );
 }
 
+/// Foreign-currency payments this month that aren't in the totals yet.
+class _ForeignBanner extends StatelessWidget {
+  const _ForeignBanner({required this.count});
+  final int count;
+
+  @override
+  Widget build(BuildContext context) => AppCard(
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    onTap: () => context.go('/activity?filter=foreign'),
+    child: Row(
+      children: [
+        Icon(PhosphorIconsFill.globeHemisphereWest, color: context.colors.onSurfaceVariant),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            '$count payment${count == 1 ? '' : 's'} in other currencies not in these totals',
+            style: context.text.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+          ),
+        ),
+        const Icon(PhosphorIconsBold.caretRight, size: 18),
+      ],
+    ),
+  );
+}
+
 class _ConnectSmsCard extends ConsumerWidget {
   const _ConnectSmsCard();
 
@@ -225,7 +254,7 @@ class _ConnectSmsCard extends ConsumerWidget {
             children: [
               Text('Connect SMS', style: context.text.titleMedium),
               Text(
-                'Track UPI & card spends automatically',
+                'Track card, bank & UPI spends automatically',
                 style: context.text.bodySmall?.copyWith(color: context.colors.onSurfaceVariant),
               ),
             ],

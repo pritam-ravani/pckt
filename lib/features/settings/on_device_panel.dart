@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/format.dart';
 import '../../core/theme/icons.dart';
 import '../../core/theme/palette.dart';
 import '../../llm/llm_client.dart';
@@ -264,8 +265,8 @@ class _ModelCardState extends ConsumerState<_ModelCard> {
     try {
       final res = await OnDeviceClient(model: widget.option.model).chat(
         system: 'You are a concise assistant.',
-        messages: const [
-          UserMessage('A UPI payment of ₹250 went to Swiggy. Which spending category is that? One word.'),
+        messages: [
+          UserMessage('A payment of ${money(25000)} went to Swiggy. Which spending category is that? One word.'),
         ],
         maxTokens: 64,
       );

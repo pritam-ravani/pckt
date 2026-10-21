@@ -1,3 +1,4 @@
+import '../../core/currency.dart';
 import '../../data/db/database.dart';
 import '../stats.dart';
 
@@ -58,6 +59,8 @@ int daysLeftIn(DateTime month, DateTime now) {
 
 /// Measures every active budget against [txns] for [month]. Only debits
 /// dated inside the month count; transfers are excluded (via [MonthStats]).
+/// Budgets set in another currency than the home one (before the user
+/// switched) don't apply until they are set again.
 /// The overall budget (if any) comes first, then categories by how close
 /// they are to their limit.
 List<BudgetProgress> budgetProgress({
@@ -77,7 +80,7 @@ List<BudgetProgress> budgetProgress({
 
   final out = <BudgetProgress>[];
   for (final b in budgets) {
-    if (!b.active || b.amountMinor <= 0) continue;
+    if (!b.active || b.amountMinor <= 0 || b.currency != Currencies.home) continue;
     if (b.categoryId != null && !cats.containsKey(b.categoryId)) continue;
     out.add(
       BudgetProgress(

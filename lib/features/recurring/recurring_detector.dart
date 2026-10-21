@@ -21,7 +21,7 @@ class RecurringPayment {
   final String cadence;
   final int periodDays;
 
-  /// Median amount of the matching payments, in paise.
+  /// Median amount of the matching payments, in home-currency minor units.
   final int typicalMinor;
   final int count;
   final DateTime last;
@@ -32,32 +32,36 @@ class RecurringPayment {
 
   DateTime get next => last.add(Duration(days: periodDays));
 
-  /// Cost normalised to an average month (30.4 days), in paise.
+  /// Cost normalised to an average month (30.4 days), in home-currency
+  /// minor units.
   double get monthlyCostMinor => typicalMinor * 30.4 / periodDays;
 
   /// True when the next payment date has already passed.
   bool isOverdue(DateTime today) => next.isBefore(DateTime(today.year, today.month, today.day));
 }
 
-/// Sum of [RecurringPayment.monthlyCostMinor], rounded to paise.
+/// Sum of [RecurringPayment.monthlyCostMinor], rounded to minor units.
 int monthlyTotalMinor(Iterable<RecurringPayment> found) =>
     found.fold<double>(0, (s, r) => s + r.monthlyCostMinor).round();
 
 /// Same merchant + similar amount (±20% of the median) at a steady cadence.
 /// Needs 3+ similar payments, most gaps fitting the cadence, and a recent one.
-/// Transfers and credits in [txns] are ignored.
+/// Transfers and credits in [txns] are ignored, and so are foreign payments
+/// without a home-currency amount (amounts are compared in the home currency).
 List<RecurringPayment> detectRecurring(List<TxnView> txns, {required DateTime today}) {
   const cadences = [('weekly', 7, 5, 9), ('monthly', 30, 25, 36), ('quarterly', 91, 80, 100)];
-  final debits = txns.where((v) => !v.txn.isTransfer && v.txn.direction == TxnDirection.debit);
+  final debits = txns.where(
+    (v) => !v.txn.isTransfer && v.txn.direction == TxnDirection.debit && v.txn.homeMinor != null,
+  );
   final groups = groupBy(debits, (TxnView v) => (v.txn.merchant ?? v.txn.counterparty ?? '').toLowerCase().trim());
   final out = <RecurringPayment>[];
   for (final e in groups.entries) {
     if (e.key.isEmpty || e.value.length < 3) continue;
     final sorted = e.value.sortedBy((v) => v.txn.occurredAt);
-    final amounts = sorted.map((v) => v.txn.amountMinor).sorted((a, b) => a.compareTo(b));
+    final amounts = sorted.map((v) => v.txn.homeMinor!).sorted((a, b) => a.compareTo(b));
     final median = amounts[amounts.length ~/ 2];
     // Keep payments with a similar amount (a subscription, not every Swiggy order).
-    final similar = sorted.where((v) => (v.txn.amountMinor - median).abs() <= median * 0.2).toList();
+    final similar = sorted.where((v) => (v.txn.homeMinor! - median).abs() <= median * 0.2).toList();
     if (similar.length < 3) continue;
     final gaps = [
       for (var i = 1; i < similar.length; i++)

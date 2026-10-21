@@ -84,14 +84,18 @@ class PcktApp extends ConsumerWidget {
   const PcktApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) => MaterialApp.router(
-    title: 'Pckt',
-    debugShowCheckedModeBanner: false,
-    theme: AppTheme.light(),
-    darkTheme: AppTheme.dark(),
-    themeMode: ref.watch(themeModeProvider),
-    routerConfig: ref.watch(_routerProvider),
-    // Optional app lock over every route (off by default).
-    builder: (context, child) => AppLockGate(child: child ?? const SizedBox.shrink()),
-  );
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Loads the home currency before anything formats an amount.
+    ref.watch(homeCurrencyProvider);
+    return MaterialApp.router(
+      title: 'Pckt',
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.light(),
+      darkTheme: AppTheme.dark(),
+      themeMode: ref.watch(themeModeProvider),
+      routerConfig: ref.watch(_routerProvider),
+      // Optional app lock over every route (off by default).
+      builder: (context, child) => AppLockGate(child: child ?? const SizedBox.shrink()),
+    );
+  }
 }

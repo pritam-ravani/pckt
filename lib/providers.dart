@@ -1,3 +1,5 @@
+import 'dart:ui' show PlatformDispatcher;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -7,6 +9,7 @@ import 'core/secrets.dart';
 import 'data/db/database.dart';
 import 'ingestion/ingestion_service.dart';
 import 'ingestion/parser/email_parser.dart';
+import 'ingestion/parser/sms_parser.dart';
 import 'ingestion/share/share_intake.dart';
 import 'ingestion/sms/sms_source.dart';
 
@@ -25,9 +28,14 @@ final databaseProvider = Provider<AppDatabase>((ref) {
 /// merchant rules are kept).
 const smsParserVersion = 4;
 
-final ingestionProvider = Provider(
-  (ref) => IngestionService(ref.watch(databaseProvider), parsers: const {SourceKind.email: EmailParser()}),
-);
+final ingestionProvider = Provider((ref) {
+  final home = ref.watch(homeCurrencyProvider);
+  return IngestionService(
+    ref.watch(databaseProvider),
+    homeCurrency: home,
+    parsers: {SourceKind.email: EmailParser(sms: SmsParser(home: home))},
+  );
+});
 final smsSourceProvider = Provider((ref) => SmsSource());
 final secretStoreProvider = Provider((ref) => SecretStore());
 
@@ -45,7 +53,47 @@ abstract final class PrefKeys {
   /// Missing = on.
   static const smsAlerts = 'sms.alerts';
   static const themeMode = 'themeMode';
+
+  /// ISO 4217 code. Read natively by SmsAlertReceiver.kt as
+  /// `flutter.currency.home` — keep the name in sync.
+  static const homeCurrency = 'currency.home';
+
+  /// Set once the messages v1.0's parser skipped (foreign amounts, mostly)
+  /// have been re-read with the current rules.
+  static const skippedReparsed = 'sms.skippedReparsed';
 }
+
+/// The home currency: totals, budgets and the assistant use it, and amounts
+/// that name no currency are read as it. Installs from before currencies
+/// existed keep INR; a new install starts from the device locale and the
+/// user confirms it during onboarding.
+class HomeCurrencyNotifier extends Notifier<String> {
+  @override
+  String build() {
+    final prefs = ref.read(prefsProvider);
+    final stored = prefs.getString(PrefKeys.homeCurrency);
+    final String code;
+    if (stored != null && isSupportedCurrency(stored)) {
+      code = stored;
+    } else if (prefs.getBool(PrefKeys.onboarded) ?? false) {
+      code = 'INR';
+      prefs.setString(PrefKeys.homeCurrency, code);
+    } else {
+      code = defaultCurrencyForLocale(PlatformDispatcher.instance.locale.toString());
+    }
+    Currencies.home = code;
+    return code;
+  }
+
+  Future<void> set(String code) async {
+    if (!isSupportedCurrency(code)) throw ArgumentError('Unsupported currency $code');
+    await ref.read(prefsProvider).setString(PrefKeys.homeCurrency, code);
+    Currencies.home = code;
+    state = code;
+  }
+}
+
+final homeCurrencyProvider = NotifierProvider<HomeCurrencyNotifier, String>(HomeCurrencyNotifier.new);
 
 class ThemeModeNotifier extends Notifier<ThemeMode> {
   @override
@@ -64,7 +112,10 @@ class OnboardedNotifier extends Notifier<bool> {
   bool build() => ref.read(prefsProvider).getBool(PrefKeys.onboarded) ?? false;
 
   void complete() {
-    ref.read(prefsProvider).setBool(PrefKeys.onboarded, true);
+    final prefs = ref.read(prefsProvider);
+    // Pin the currency picked (or defaulted) during onboarding.
+    prefs.setString(PrefKeys.homeCurrency, ref.read(homeCurrencyProvider));
+    prefs.setBool(PrefKeys.onboarded, true);
     state = true;
   }
 }
@@ -146,6 +197,11 @@ class SmsSyncController extends Notifier<SmsSyncState> {
         await ref.read(databaseProvider).resetSource(SourceKind.sms);
         await _prefs.remove(PrefKeys.smsLastSync);
       }
+      // Pick up spends (foreign ones, mostly) that v1.0 skipped.
+      if (!(_prefs.getBool(PrefKeys.skippedReparsed) ?? false)) {
+        await ref.read(ingestionProvider).reparseSkipped();
+        await _prefs.setBool(PrefKeys.skippedReparsed, true);
+      }
       final last = _prefs.getInt(PrefKeys.smsLastSync);
       final importFrom = _prefs.getInt(PrefKeys.smsImportFrom) ?? 0;
       final since = last == null
@@ -168,7 +224,7 @@ class SmsSyncController extends Notifier<SmsSyncState> {
 
 final smsSyncProvider = NotifierProvider<SmsSyncController, SmsSyncState>(SmsSyncController.new);
 
-/// Real-time "₹250 debited · HDFC" notifications for incoming bank SMS.
+/// Real-time "₹250 debited · HDFC" style notifications for incoming bank SMS.
 /// The native receiver checks the pref itself, so this only stores the
 /// choice and asks for the permissions it needs.
 class SmsAlertsController extends Notifier<bool> {
@@ -252,18 +308,26 @@ class SelectedMonth extends Notifier<DateTime> {
 
 final selectedMonthProvider = NotifierProvider<SelectedMonth, DateTime>(SelectedMonth.new);
 
+// The transaction streams watch the home currency so every total and
+// formatted amount is recomputed when it changes.
+
 final monthTxnsProvider = StreamProvider<List<TxnView>>((ref) {
+  ref.watch(homeCurrencyProvider);
   final m = ref.watch(selectedMonthProvider);
   return ref.watch(databaseProvider).watchTxns(from: m, to: nextMonth(m));
 });
 
 /// Last 6 months ending with the selected month — for trend charts.
 final trendTxnsProvider = StreamProvider<List<TxnView>>((ref) {
+  ref.watch(homeCurrencyProvider);
   final m = ref.watch(selectedMonthProvider);
   return ref.watch(databaseProvider).watchTxns(from: DateTime(m.year, m.month - 5), to: nextMonth(m));
 });
 
-final allTxnsProvider = StreamProvider<List<TxnView>>((ref) => ref.watch(databaseProvider).watchTxns(limit: 2000));
+final allTxnsProvider = StreamProvider<List<TxnView>>((ref) {
+  ref.watch(homeCurrencyProvider);
+  return ref.watch(databaseProvider).watchTxns(limit: 2000);
+});
 
 final categoriesProvider = StreamProvider<List<Category>>((ref) => ref.watch(databaseProvider).watchCategories());
 
@@ -271,7 +335,10 @@ final accountsProvider = StreamProvider<List<Account>>((ref) => ref.watch(databa
 
 final reviewCountProvider = StreamProvider<int>((ref) => ref.watch(databaseProvider).watchReviewCount());
 
-final txnProvider = StreamProvider.family<TxnView?, int>((ref, id) => ref.watch(databaseProvider).watchTxn(id));
+final txnProvider = StreamProvider.family<TxnView?, int>((ref, id) {
+  ref.watch(homeCurrencyProvider);
+  return ref.watch(databaseProvider).watchTxn(id);
+});
 
 final txnSourcesProvider = StreamProvider.family<List<RawMessage>, int>(
   (ref, id) => ref.watch(databaseProvider).watchSourcesFor(id),

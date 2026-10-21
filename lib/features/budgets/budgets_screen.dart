@@ -173,6 +173,8 @@ class _BudgetTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = progress;
+    // Set before the home currency changed: kept, but not tracked.
+    final stale = budget.currency != Currencies.home;
     return AppCard(
       padding: const EdgeInsets.all(16),
       onTap: onTap,
@@ -189,7 +191,9 @@ class _BudgetTile extends StatelessWidget {
                   Row(
                     children: [
                       Expanded(child: Text(title, style: context.text.titleSmall)),
-                      if (!budget.active)
+                      if (stale)
+                        InfoPill(icon: PhosphorIconsBold.pause, label: 'Set in ${budget.currency}')
+                      else if (!budget.active)
                         const InfoPill(icon: PhosphorIconsBold.pause, label: 'Paused')
                       else
                         Text(
@@ -213,7 +217,10 @@ class _BudgetTile extends StatelessWidget {
                     ),
                   ] else
                     Text(
-                      '${money(budget.amountMinor)} a month',
+                      stale
+                          ? '${money(budget.amountMinor, currency: budget.currency)} a month · tap to set it in '
+                                '${Currencies.home}'
+                          : '${money(budget.amountMinor)} a month',
                       style: context.text.bodySmall?.copyWith(color: context.colors.onSurfaceVariant),
                     ),
                 ],
@@ -246,8 +253,11 @@ class _BudgetEditor extends ConsumerStatefulWidget {
 }
 
 class _BudgetEditorState extends ConsumerState<_BudgetEditor> {
+  final _currency = Currencies.home;
   late final _amount = TextEditingController(
-    text: widget.existing == null ? '' : amountInputText(widget.existing!.amountMinor),
+    text: widget.existing == null || widget.existing!.currency != _currency
+        ? ''
+        : amountInputText(widget.existing!.amountMinor, currency: _currency),
   );
   late var _active = widget.existing?.active ?? true;
 
@@ -277,14 +287,23 @@ class _BudgetEditorState extends ConsumerState<_BudgetEditor> {
     if (totals.isEmpty) return null;
     final avg = totals.reduce((a, b) => a + b) ~/ totals.length;
     if (avg <= 0) return null;
-    const step = 50000; // round up to ₹500
+    // Round up: to ₹500 for rupees, to two significant figures elsewhere.
+    var step = 50000;
+    if (_currency != 'INR') {
+      step = 1;
+      while (avg ~/ step >= 100) {
+        step *= 10;
+      }
+    }
     return ((avg + step - 1) ~/ step) * step;
   }
 
   Future<void> _save() async {
-    final minor = parseAmountInput(_amount.text);
+    final minor = parseAmountInput(_amount.text, currency: _currency);
     if (minor == null || minor <= 0) return;
-    await ref.read(databaseProvider).setBudget(categoryId: widget.category?.id, amountMinor: minor, active: _active);
+    await ref
+        .read(databaseProvider)
+        .setBudget(categoryId: widget.category?.id, amountMinor: minor, active: _active, currency: _currency);
     if (_active && ref.read(budgetAlertsProvider)) {
       await ref.read(notificationsProvider).requestPermission();
     }
@@ -294,11 +313,13 @@ class _BudgetEditorState extends ConsumerState<_BudgetEditor> {
   @override
   Widget build(BuildContext context) {
     final avg = _average();
+    // Fixed picks only make sense in rupees; elsewhere offer the average.
     final presets = <int>{
       ?avg,
-      ...(widget.category == null
-          ? const [1000000, 2500000, 5000000, 7500000]
-          : const [200000, 500000, 1000000, 1500000]),
+      if (_currency == 'INR')
+        ...(widget.category == null
+            ? const [1000000, 2500000, 5000000, 7500000]
+            : const [200000, 500000, 1000000, 1500000]),
     }.toList();
     final title = widget.category == null ? 'Monthly budget' : '${widget.category!.name} limit';
     return Padding(
@@ -318,7 +339,7 @@ class _BudgetEditorState extends ConsumerState<_BudgetEditor> {
               ],
             ),
             const SizedBox(height: 12),
-            AmountField(controller: _amount, autofocus: widget.existing == null, presets: presets),
+            AmountField(controller: _amount, autofocus: widget.existing == null, presets: presets, currency: _currency),
             if (avg != null)
               Padding(
                 padding: const EdgeInsets.only(top: 10),
@@ -342,7 +363,7 @@ class _BudgetEditorState extends ConsumerState<_BudgetEditor> {
             ListenableBuilder(
               listenable: _amount,
               builder: (_, _) => FilledButton(
-                onPressed: (parseAmountInput(_amount.text) ?? 0) > 0 ? _save : null,
+                onPressed: (parseAmountInput(_amount.text, currency: _currency) ?? 0) > 0 ? _save : null,
                 child: const Text('Save'),
               ),
             ),

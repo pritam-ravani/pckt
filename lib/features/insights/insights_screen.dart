@@ -41,8 +41,8 @@ class InsightsScreen extends ConsumerWidget {
         .toList();
     final merchants = topMerchants(monthTxns);
     final biggest = monthTxns
-        .where((v) => v.txn.direction == TxnDirection.debit && !v.txn.isTransfer)
-        .fold<TxnView?>(null, (b, v) => b == null || v.txn.amountMinor > b.txn.amountMinor ? v : b);
+        .where((v) => v.txn.direction == TxnDirection.debit && !v.txn.isTransfer && v.txn.homeMinor != null)
+        .fold<TxnView?>(null, (b, v) => b == null || v.txn.homeMinor! > b.txn.homeMinor! ? v : b);
 
     return Scaffold(
       body: SafeArea(
@@ -95,7 +95,7 @@ class InsightsScreen extends ConsumerWidget {
                 _StatTile(
                   icon: PhosphorIconsFill.receipt,
                   label: 'Biggest spend',
-                  value: biggest == null ? '—' : moneyCompact(biggest.txn.amountMinor),
+                  value: biggest == null ? '—' : moneyCompact(biggest.txn.homeMinor!),
                 ),
               ],
             ),

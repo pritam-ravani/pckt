@@ -9,6 +9,7 @@ import '../../data/db/database.dart';
 import '../../providers.dart';
 import '../../ui/widgets.dart';
 import 'category_picker.dart';
+import 'conversion_sheet.dart';
 import '../settings/manage_widgets.dart' show accountLabel;
 import 'edit_transaction_sheet.dart';
 
@@ -49,13 +50,20 @@ class TransactionSheet extends ConsumerWidget {
         const SizedBox(height: 14),
         Center(
           child: Text(
-            '${credit ? '+' : '−'}${money(t.amountMinor, forceDecimals: true)}',
+            '${credit ? '+' : '−'}${money(t.amountMinor, currency: t.currency, forceDecimals: true)}',
             style: context.text.displaySmall?.copyWith(
               color: credit && !t.isTransfer ? Palette.income : null,
               fontFeatures: const [FontFeature.tabularFigures()],
             ),
           ),
         ),
+        if (t.convertedMinor != null && t.convertedCurrency != null)
+          Center(
+            child: Text(
+              '≈ ${money(t.convertedMinor!, currency: t.convertedCurrency, forceDecimals: true)}',
+              style: context.text.titleSmall?.copyWith(color: context.colors.onSurfaceVariant),
+            ),
+          ),
         const SizedBox(height: 4),
         Center(
           child: Text(txnTitle(t), style: context.text.titleMedium, textAlign: TextAlign.center),
@@ -109,6 +117,33 @@ class TransactionSheet extends ConsumerWidget {
             label: const Text('Edit details'),
           ),
         ),
+        if (t.isForeign && t.homeMinor == null) ...[
+          const SizedBox(height: 18),
+          AppCard(
+            color: Palette.amber.withValues(alpha: 0.12),
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: [
+                const Icon(PhosphorIconsFill.globeHemisphereWest, color: Palette.amber),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text("Paid in ${t.currency}, so it isn't in your ${Currencies.home} totals or budgets yet."),
+                ),
+                TextButton(
+                  onPressed: () => showConversionSheet(context, t),
+                  child: Text('Add ${currencySymbol(Currencies.home)}'),
+                ),
+              ],
+            ),
+          ),
+        ] else if (t.isForeign)
+          Center(
+            child: TextButton.icon(
+              onPressed: () => showConversionSheet(context, t),
+              icon: const Icon(PhosphorIconsRegular.arrowsLeftRight, size: 18),
+              label: Text('Change the ${Currencies.home} amount'),
+            ),
+          ),
         if (t.duplicateOfId != null) ...[
           const SizedBox(height: 18),
           _DuplicatePanel(id: id, otherId: t.duplicateOfId!),

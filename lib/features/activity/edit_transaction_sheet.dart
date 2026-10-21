@@ -8,6 +8,7 @@ import '../../core/theme/palette.dart';
 import '../../data/db/database.dart';
 import '../../providers.dart';
 import '../../ui/amount_field.dart';
+import '../../ui/currency_picker.dart';
 import '../../ui/widgets.dart';
 import '../settings/accounts_screen.dart';
 import '../settings/manage_widgets.dart';
@@ -29,7 +30,8 @@ class _EditSheet extends ConsumerStatefulWidget {
 
 class _EditSheetState extends ConsumerState<_EditSheet> {
   Transaction get _t => widget.view.txn;
-  late final _amount = TextEditingController(text: amountInputText(_t.amountMinor));
+  late var _currency = _t.currency;
+  late final _amount = TextEditingController(text: amountInputText(_t.amountMinor, currency: _t.currency));
   late final _merchant = TextEditingController(text: _t.merchant ?? '');
   late final _note = TextEditingController(text: _t.note ?? '');
   late var _direction = _t.direction;
@@ -61,8 +63,10 @@ class _EditSheetState extends ConsumerState<_EditSheet> {
   }
 
   Future<void> _save() async {
-    final minor = parseAmountInput(_amount.text);
+    final minor = parseAmountInput(_amount.text, currency: _currency);
     if (minor == null || minor <= 0 || _saving) return;
+    // A conversion recorded for the old amount or currency no longer holds.
+    final keepConversion = _currency == _t.currency && minor == _t.amountMinor;
     setState(() => _saving = true);
     final db = ref.read(databaseProvider);
     final newMerchant = _merchant.text.trim().isEmpty ? null : _merchant.text.trim();
@@ -104,6 +108,9 @@ class _EditSheetState extends ConsumerState<_EditSheet> {
       await db.updateTxn(
         _t.id,
         amountMinor: minor,
+        currency: Value(_currency),
+        convertedMinor: keepConversion ? const Value.absent() : const Value(null),
+        convertedCurrency: keepConversion ? const Value.absent() : const Value(null),
         direction: _direction,
         occurredAt: _at,
         merchant: newMerchant,
@@ -147,7 +154,19 @@ class _EditSheetState extends ConsumerState<_EditSheet> {
               onSelectionChanged: (s) => setState(() => _direction = s.first),
             ),
             const SizedBox(height: 8),
-            AmountField(controller: _amount, color: color),
+            AmountField(
+              controller: _amount,
+              color: color,
+              currency: _currency,
+              onCurrencyTap: () async {
+                final c = await showCurrencyPicker(context, selected: _currency);
+                if (c == null || c == _currency) return;
+                setState(() {
+                  _currency = c;
+                  _amount.clear();
+                });
+              },
+            ),
             const SizedBox(height: 12),
             TextField(
               controller: _merchant,
@@ -215,7 +234,7 @@ class _EditSheetState extends ConsumerState<_EditSheet> {
             ListenableBuilder(
               listenable: _amount,
               builder: (_, _) => FilledButton(
-                onPressed: !_saving && (parseAmountInput(_amount.text) ?? 0) > 0 ? _save : null,
+                onPressed: !_saving && (parseAmountInput(_amount.text, currency: _currency) ?? 0) > 0 ? _save : null,
                 child: const Text('Save'),
               ),
             ),

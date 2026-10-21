@@ -9,7 +9,10 @@ import '../../data/db/database.dart';
 import '../../providers.dart';
 import 'budget_math.dart';
 
-final budgetsProvider = StreamProvider<List<Budget>>((ref) => ref.watch(databaseProvider).watchBudgets());
+final budgetsProvider = StreamProvider<List<Budget>>((ref) {
+  ref.watch(homeCurrencyProvider); // budgets apply per currency
+  return ref.watch(databaseProvider).watchBudgets();
+});
 
 /// Budgets measured against the month selected on the dashboard.
 final budgetProgressProvider = Provider<AsyncValue<List<BudgetProgress>>>((ref) {
