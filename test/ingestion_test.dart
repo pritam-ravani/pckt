@@ -93,12 +93,12 @@ void main() {
     await svc.ingest([
       msg(
         'VM-HDFCBK',
-        'Rs.10,000.00 debited from A/c **4521 on 12-10-26 via IMPS to PRITAM R. IMPS Ref 628512345678',
+        'Rs.10,000.00 debited from A/c **4521 on 12-10-26 via IMPS to ASHA K. IMPS Ref 628512345678',
         t0,
       ),
       msg(
         'VM-ICICIB',
-        'Your A/c XX123 has been credited with INR 10,000.00 on 12-Oct-26 by IMPS from PRITAM R.',
+        'Your A/c XX123 has been credited with INR 10,000.00 on 12-Oct-26 by IMPS from ASHA K.',
         t0.add(const Duration(minutes: 1)),
       ),
     ]);

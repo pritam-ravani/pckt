@@ -1,11 +1,95 @@
+<p align="center"><img src="assets/branding/previews/icon_on_light.png" width="128" alt="Pckt icon"></p>
+
 # Pckt
 
-Automatic personal finance tracker for India. Reads bank / UPI / card alerts
-from SMS and email, deduplicates them, categorises every transaction and
-lets you plug in your own LLM to read odd messages, fix categories and answer questions.
+**A free, open-source finance tracker that fills itself in.** Pckt reads the bank, card and UPI
+alerts already arriving on your phone by SMS and email, turns them into transactions, merges the
+copies, and sorts each one into a category. You don't type anything in. Everything stays in an
+encrypted database on your phone. If you want AI help, you connect your own LLM (cloud or
+on-device); Pckt has no server and no account.
 
-Local-first: all data lives in an on-device, encrypted (SQLCipher) database. Nothing is uploaded
-unless you connect an LLM and switch on a feature that uses it (see *Privacy*).
+Built for India first: Indian bank SMS formats, UPI references and VPAs, NACH/IMPS/NEFT, ₹ everywhere.
+
+[Download the latest APK](https://github.com/pritam-ravani/pckt/releases/latest) · Android 11+, 64-bit ·
+GPL-3.0
+
+## The idea
+
+Most people already have a perfect record of their spending: every payment sends an SMS, and
+often an email too. What's missing is software that reads those messages *on your phone* and doesn't
+send them to someone else's server.
+
+- **Messages in, transactions out.** A rule-based parser understands Indian bank alerts (sender
+  IDs, amounts, account last-4, UPI refs, merchants). Messages the rules can't read can optionally go
+  to your LLM.
+- **One payment, one row.** The same ₹450 Swiggy order shows up as a bank SMS, a bank email and a
+  Swiggy receipt. A scoring dedup engine (same reference, account, time, merchant, channel) merges
+  them, and you can see why each merge happened and undo it. Transfers between your own accounts are
+  recognised and kept out of spend.
+- **Learns your categories.** When you fix a category, it becomes a merchant rule. Your edits always
+  beat the AI.
+- **Bring your own brain.** Plug in OpenAI-compatible (OpenAI, OpenRouter, Groq, Ollama…),
+  Anthropic or Gemini keys, or download a Gemma model that runs entirely on the phone. The **Ask**
+  tab is an agent with tools over your local data ("How much did I spend on food in September vs
+  August?"), and it asks before changing anything.
+
+## How it compares
+
+| | **Pckt** | **Oinkoin** | **Axio** (ex-Walnut) | **YNAB / Monarch** |
+|---|---|---|---|---|
+| Price | Free | Free, paid Pro | Free (makes money on loans / credit) | Subscription, about US$100/year |
+| Source | Open (GPL-3.0) | Open (GPL-3.0) | Closed | Closed |
+| How transactions get in | **Automatic** from SMS + email, share sheet | Typed in by hand | Automatic from SMS | Bank sync (mostly US/EU banks) |
+| SMS + email dedup | ✓ | — | — | n/a |
+| Where data lives | Your phone, encrypted (SQLCipher) | Your phone | Their cloud | Their cloud |
+| Account needed | No | No | Yes | Yes |
+| AI | Optional: your own key or fully on-device | — | — | Vendor's own, in their cloud (Monarch) |
+| Budgets, recurring, export | ✓ | ✓ (recurring and backup are Pro) | Budgets, bill reminders | ✓ |
+| Platforms | Android (iOS via Shortcuts, untested) | Android, Linux, Windows | Android, iOS | Web, iOS, Android |
+
+**Oinkoin** is the closest in spirit and the inspiration: open source, offline, no ads. But every
+entry is typed by hand, and backup and recurring records are Pro features. Pckt keeps that privacy and
+openness but does the data entry for you, and everything is free.
+
+**Paid and "free" commercial apps** either sync through bank aggregators (YNAB, Monarch; little Indian
+bank coverage, and a subscription), or read your SMS but pay for themselves with lending and credit
+products and keep your data in their cloud (Axio and similar Indian apps). Pckt reads the same SMS on
+the device and has nothing to sell you.
+
+*Comparison based on each app's public pages as of October 2026; pricing and features change.*
+
+## Features
+
+- Automatic import from SMS (history + real-time alerts) and email (IMAP app passwords for Gmail,
+  Outlook, Yahoo, Zoho or any server; optional Gmail OAuth)
+- Share any message or receipt into Pckt, plus a `pckt://ingest` link for iOS Shortcuts
+- Dashboard, activity feed, insights charts, budgets per category, recurring payment detection
+- Edit transactions, manage accounts and categories; every source message is inspectable
+- Optional AI: read unusual messages, categorise leftovers, chat with your finances
+- On-device Gemma 4 / Qwen3 picked for your phone's RAM and chip, downloaded once over Wi-Fi
+- Encrypted database, optional biometric app lock, hidden from screenshots and recents, no cloud
+  backup; CSV export and full JSON backup/restore
+
+## Install
+
+1. Download `pckt-v*.apk` from [Releases](https://github.com/pritam-ravani/pckt/releases).
+2. Open it on your phone and allow installing from your browser/files app.
+3. Grant SMS access when Pckt asks. It reads your inbox once, then keeps up as new alerts arrive.
+
+## Contributing
+
+Issues and pull requests are welcome, especially **SMS and email formats from banks Pckt doesn't
+read yet**. See [CONTRIBUTING.md](CONTRIBUTING.md). Please remove real names, account numbers and
+references from any sample message you share.
+
+## License
+
+[GPL-3.0](LICENSE). You can use, study, change and share Pckt. If you distribute a modified
+version, you must publish its source under the same license.
+
+---
+
+# Development
 
 ## Run
 
@@ -302,5 +386,6 @@ launch window; iOS uses the `LaunchBackground` named colour).
       Gmail OAuth (`gmail.readonly`); email parser feeding the same pipeline, SMS↔email dedup
 - [x] Phase 4 — Bring-your-own LLM: OpenAI-compatible / Anthropic / Gemini, key in secure storage;
       LLM fallback for unreadable messages; agent chat with tools over the local DB
-- [ ] Phase 5 — budgets, subscription detection, SQLCipher encryption (done: on-device Gemma
-      models, iOS Shortcuts / share bridge, real-time SMS alerts, CSV export & JSON backup)
+- [x] Phase 5 — budgets, recurring payments, editing, SQLCipher encryption, app lock, on-device Gemma
+      models, iOS Shortcuts / share bridge, real-time SMS alerts, CSV export & JSON backup
+- [ ] Next — iOS testing, more bank formats, Qualcomm NPU opt-in, F-Droid

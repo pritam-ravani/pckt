@@ -157,7 +157,7 @@ void main() {
         'Amazon.in <auto-confirm@amazon.in>',
         'Your Amazon.in order #403-1234567-1234567 of 1 item',
         plain:
-            'Hello Pritam,\nThank you for your order. We will send a confirmation when your item ships.\n'
+            'Hello Asha,\nThank you for your order. We will send a confirmation when your item ships.\n'
             'Order Details\nOrder #403-1234567-1234567\nItem Subtotal: ₹1,249.00\nShipping: ₹50.00\n'
             'Order Total: ₹1,299.00\nPaid by HDFC Bank Credit Card ending in 7788',
       );
@@ -182,7 +182,7 @@ void main() {
       final t = ok(
         'Uber Receipts <noreply@uber.com>',
         'Your Tuesday evening trip with Uber',
-        plain: "Thanks for riding, Pritam\nTotal ₹245.50\nTrip fare ₹230.00\nBooking fee ₹15.50\nPayments: UPI",
+        plain: "Thanks for riding, Asha\nTotal ₹245.50\nTrip fare ₹230.00\nBooking fee ₹15.50\nPayments: UPI",
       );
       expect(t.amountMinor, 24550);
       expect(t.merchant, 'Uber');
