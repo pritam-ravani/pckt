@@ -1,4 +1,4 @@
-<p align="center"><a href="https://github.com/pritam-ravani/pckt/releases/download/v1.0.1/pckt-ad.mp4"><img src="assets/branding/ad/pckt-ad.gif" width="720" alt="Pckt in 30 seconds"></a><br><sub>Click for the full video with sound.</sub></p>
+<p align="center"><img src="assets/branding/ad/pckt-ad.gif" width="720" alt="Pckt in 30 seconds"></p>
 
 # Pckt
 
