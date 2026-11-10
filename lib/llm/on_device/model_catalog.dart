@@ -210,7 +210,7 @@ Recommendation recommendModel(
         continue;
       }
       if (!qualcommNpu) {
-        options.add(ModelOption(m, ModelFit.needsNpuBuild, 'Needs the NPU-enabled build of Pckt'));
+        options.add(ModelOption(m, ModelFit.needsNpuBuild, 'Needs the NPU-enabled build of PennyWise'));
         continue;
       }
     }

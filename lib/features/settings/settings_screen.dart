@@ -143,6 +143,18 @@ class SettingsScreen extends ConsumerWidget {
                 ],
               ),
             ),
+            const SizedBox(height: 20),
+            const SectionHeader('About'),
+            AppCard(
+              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+              child: ListTile(
+                leading: const Icon(PhosphorIconsBold.info),
+                title: const Text('About PennyWise'),
+                subtitle: const Text('Version, source code and licences'),
+                trailing: const Icon(PhosphorIconsBold.caretRight, size: 16),
+                onTap: () => context.push('/about'),
+              ),
+            ),
           ],
         ),
       ),

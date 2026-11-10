@@ -134,7 +134,7 @@ class EmailSourceCard extends ConsumerWidget {
       builder: (c) => AlertDialog(
         title: const Text('Disconnect email?'),
         content: const Text(
-          'Pckt stops reading this mailbox and forgets the password. '
+          'PennyWise stops reading this mailbox and forgets the password. '
           'Transactions already imported stay.',
         ),
         actions: [

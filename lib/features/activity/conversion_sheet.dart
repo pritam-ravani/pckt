@@ -74,7 +74,7 @@ class _ConversionSheetState extends ConsumerState<_ConversionSheet> {
             const SizedBox(height: 6),
             Text(
               'Enter what your bank charged (it\'s on the statement), or the rate you got. '
-              'Pckt works offline and never looks rates up.',
+              'PennyWise works offline and never looks rates up.',
               style: context.text.bodySmall?.copyWith(color: context.colors.onSurfaceVariant),
             ),
             const SizedBox(height: 12),

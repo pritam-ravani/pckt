@@ -27,7 +27,7 @@ class OpenAiCompatibleClient implements LlmClient {
   Map<String, String> get _headers => {
     if (apiKey != null && apiKey!.isNotEmpty) 'authorization': 'Bearer $apiKey',
     // OpenRouter shows this in its dashboard; other providers ignore it.
-    'x-title': 'Pckt',
+    'x-title': 'PennyWise',
   };
 
   /// OpenAI's own API wants `max_completion_tokens` (reasoning models reject

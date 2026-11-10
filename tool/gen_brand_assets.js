@@ -1,6 +1,6 @@
 // Run: node tool/gen_brand_assets.js
 //
-// One geometry for the Pckt mark — a "P" whose bowl is a pocket holding a
+// One geometry for the PennyWise mark — a "P" whose bowl is a pocket holding a
 // mint coin — written out as
 //   * SVG sources in assets/branding/ (the reference artwork),
 //   * Android vector drawables (adaptive foreground, monochrome themed-icon
@@ -20,7 +20,7 @@ const root = path.join(__dirname, '..');
 // ------------------------------------------------------------- palette
 const hex = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
 const C = {
-  ink: '#0B0C10', paper: '#F6F6F2', violet: '#8B7CF6', mint: '#3DDC97',
+  ink: '#0B0C10', paper: '#F6F6F2', violet: '#8B7CF6', coin: '#F5B83D',
   // Background: a lifted take on Palette.heroGradient (#6D5DF6 → #3B2FB8 →
   // #1E1A5E), so the icon reads on both light and dark wallpapers.
   bgA: '#8B7CF6', bgB: '#5B4BE0', bgC: '#2A2380',
@@ -66,7 +66,7 @@ function markPath(s = 1, ox = 0, oy = 0) {
   const X = (v) => +(ox + v * s).toFixed(3), Y = (v) => +(oy + v * s).toFixed(3);
   return `M${X(G.stemX)} ${Y(G.bottom)}V${Y(G.top)}H${X(G.bowlCx)}A${+(G.bowlR * s).toFixed(3)} ${+(G.bowlR * s).toFixed(3)} 0 0 1 ${X(G.bowlCx)} ${Y(G.bowlBottom)}H${X(G.stemX)}`;
 }
-function svgIcon({ bg = true, mark = C.markLight, markGradient = null, coin = C.mint, size = 1024 } = {}) {
+function svgIcon({ bg = true, mark = C.markLight, markGradient = null, coin = C.coin, size = 1024 } = {}) {
   const s = size;
   const defs = [
     bg ? `<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${C.bgA}"/><stop offset="0.55" stop-color="${C.bgB}"/><stop offset="1" stop-color="${C.bgC}"/></linearGradient>` : '',
@@ -149,7 +149,7 @@ function render(size, o = {}) {
             ? mix(hex(C.darkA), hex(C.darkB), Math.max(0, Math.min(1, (my - G.top) / (G.bottom - G.top))))
             : Array.isArray(o.mark) ? o.mark : hex(C.markLight);
           over(markCol, cover(pDist(mx, my) * scale, px / 1.2));
-          over(o.coin ?? hex(C.mint), cover(coinDist(mx, my) * scale, px / 1.2));
+          over(o.coin ?? hex(C.coin), cover(coinDist(mx, my) * scale, px / 1.2));
           acc = [acc[0] + rgb[0] * a, acc[1] + rgb[1] * a, acc[2] + rgb[2] * a, acc[3] + a];
         }
       }
@@ -223,15 +223,15 @@ function compose(w, h, pageRgb, items) {
 
 // ============================================================= outputs
 // SVG sources
-out('assets/branding/pckt-icon.svg', svgIcon());
-out('assets/branding/pckt-icon-dark.svg', svgIcon({ bg: false, markGradient: [C.darkA, C.darkB] }));
-out('assets/branding/pckt-icon-monochrome.svg', svgIcon({ bg: false, mark: '#FFFFFF', coin: '#FFFFFF' }));
+out('assets/branding/pennywise-icon.svg', svgIcon());
+out('assets/branding/pennywise-icon-dark.svg', svgIcon({ bg: false, markGradient: [C.darkA, C.darkB] }));
+out('assets/branding/pennywise-icon-monochrome.svg', svgIcon({ bg: false, mark: '#FFFFFF', coin: '#FFFFFF' }));
 
 // Android
 const res = 'android/app/src/main/res';
 const FG_SCALE = 0.95; // adaptive foreground: keeps the mark inside r ≈ 0.28
 out(`${res}/drawable/ic_launcher_foreground.xml`, vectorDrawable(108, 108, C.markLight, { scale: FG_SCALE, comment: 'Adaptive icon foreground (108dp, mark inside the 66dp safe zone).' })
-  .replace(/(<path\s+android:fillColor=")#FFFFFF/, `$1${C.mint}`));
+  .replace(/(<path\s+android:fillColor=")#FFFFFF/, `$1${C.coin}`));
 out(`${res}/drawable/ic_launcher_monochrome.xml`, vectorDrawable(108, 108, '#FFFFFFFF', { scale: FG_SCALE, comment: 'Android 13+ themed icon: the launcher tints this alpha mask.' }));
 out(`${res}/drawable/ic_stat_pckt.xml`, vectorDrawable(24, 24, '#FFFFFFFF', { scale: 1.45, comment: 'Notification small icon: white on transparent; the system tints it.' }));
 out(`${res}/drawable/ic_launcher_background.xml`, `<?xml version="1.0" encoding="utf-8"?>

@@ -1,6 +1,6 @@
-# Pckt: architecture and development
+# PennyWise: architecture and development
 
-How Pckt works inside, for contributors. What the app does and how to set it up is in the
+How PennyWise works inside, for contributors. What the app does and how to set it up is in the
 [README](README.md); how to send a fix is in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Run
@@ -57,6 +57,20 @@ unless the user set one.
 A debit from one own account and an equal credit to another within an hour is
 marked as a self-transfer and excluded from spend/income.
 
+## Schema migrations
+
+`drift_schemas/` holds one JSON snapshot per schema version, starting at v4. When you bump
+`schemaVersion`, run:
+
+```sh
+dart run drift_dev schema dump lib/data/db/database.dart drift_schemas/drift_schema_vN.json
+dart run drift_dev schema generate drift_schemas test/generated_migrations
+```
+
+`test/migration_test.dart` fails until the snapshot exists. Enums are stored by index, so only append
+new values. Internal `pckt` identifiers (Dart package, Kotlin package, method channels, `pckt://`,
+`pckt.sqlite`, the `pckt-backup` format) are kept on purpose so existing data and backups keep working.
+
 ## Currencies
 
 Amounts are stored as integers in each currency's minor unit (`lib/core/currency.dart`, decimals
@@ -66,21 +80,21 @@ ISO 4217 code on every transaction and account (schema v4; rows from v1.0 are IN
 - **Home currency.** Chosen at onboarding (defaulted from the phone's region) and in
   Settings → Money → Currency. Existing installs keep INR. Totals, budgets, charts, notifications,
   the assistant and its tools use it. Budgets remember their currency and pause if you switch.
-- **Foreign transactions.** Pckt has no server and never fetches exchange rates. A message that
+- **Foreign transactions.** PennyWise has no server and never fetches exchange rates. A message that
   states the home-currency equivalent is stored with both amounts and counts at once. Otherwise the
   transaction keeps its own currency, is shown with "not in totals", and you add what the bank
   charged (or a rate) from the transaction; until then it is left out of totals rather than guessed.
   The dashboard says how many are waiting.
 - **Parsing.** Markers are read with the amount: `Rs`/`₹`/`INR`, ISO codes before or after the
   number, `$ US$ S$ A$ C$ NZ$ R$ € £ ¥ ₩ ₱ ₫ ฿ ₦ ₺ ৳ RM Rp KSh`. A bare `$` or `Rs` means the home
-  dollar/rupee when it is one (USD/INR otherwise). Alerts from senders Pckt doesn't know still parse
+  dollar/rupee when it is one (USD/INR otherwise). Alerts from senders PennyWise doesn't know still parse
   at a lower confidence and are marked for review.
 - **Supported:** INR, AED, SAR, QAR, KWD, OMR, BHD, SGD, MYR, USD, GBP, CAD, AUD, NZD, EUR, BDT, PKR,
   LKR, NPR, IDR, PHP, VND, THB, NGN, KES, ZAR, BRL, MXN, TRY, JPY, KRW.
 
 ## Email
 
-Settings → Sources → Email → Connect. Pckt searches the INBOX since the chosen
+Settings → Sources → Email → Connect. PennyWise searches the INBOX since the chosen
 import window (1/3/6/12 months, then incrementally with a 1-day overlap, max 400
 messages per sync) for mail from known bank / card / UPI / merchant domains or with
 payment words in the subject, downloads only those, converts HTML to text and runs
@@ -97,12 +111,12 @@ App-password setup for each provider is in the README (*Connect your email*).
 has an OAuth client id. One-time Google Cloud setup:
 
 1. console.cloud.google.com → create a project → *APIs & Services → Library* → enable **Gmail API**.
-2. *OAuth consent screen*: External, app name "Pckt", add scope
+2. *OAuth consent screen*: External, app name "PennyWise", add scope
    `https://www.googleapis.com/auth/gmail.readonly`, add your Google account as a **test user**
    (Testing mode is enough for personal use; `gmail.readonly` is a restricted scope, so
    publishing would need Google verification).
 3. *Credentials → Create credentials → OAuth client ID → Android*: package name
-   `com.pckt.pckt`, SHA-1 of the signing key. For debug builds:
+   `com.sahilkarande.pennywise`, SHA-1 of the signing key. For debug builds:
    ```sh
    keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android -keypass android
    ```
@@ -169,10 +183,10 @@ storage, Android version and GPU support (`pckt/device` channel).
 `READ_SMS`). If a message comes from a known bank DLT sender (`VM-HDFCBK`, `AD-ICICIT-S`, not
 `-P` promos) and has a completed debit/credit verb plus an amount, it posts *"₹250 debited · HDFC —
 Tap to review"* (or *"USD 12.50 debited · HDFC"* for a spend abroad) on the **Transaction alerts**
-channel; it reads the home currency from `flutter.currency.home`. Tapping opens Pckt, which syncs SMS on resume;
+channel; it reads the home currency from `flutter.currency.home`. Tapping opens PennyWise, which syncs SMS on resume;
 the receiver itself stores nothing, so the Dart pipeline stays the source of truth. Turn it off in
 Settings → SMS → *Instant alerts* (pref `sms.alerts`, read natively as `flutter.sms.alerts`).
-Android 13+ also needs the notification permission, which Pckt asks for once.
+Android 13+ also needs the notification permission, which PennyWise asks for once.
 
 ## Security
 
