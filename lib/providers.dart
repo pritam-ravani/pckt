@@ -54,6 +54,10 @@ abstract final class PrefKeys {
   static const smsAlerts = 'sms.alerts';
   static const themeMode = 'themeMode';
 
+  /// Payment type and account last used in the add-transaction sheet.
+  static const quickAddMode = 'quickAdd.mode';
+  static const quickAddAccount = 'quickAdd.account';
+
   /// ISO 4217 code. Read natively by SmsAlertReceiver.kt as
   /// `flutter.currency.home` — keep the name in sync.
   static const homeCurrency = 'currency.home';
