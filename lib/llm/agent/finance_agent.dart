@@ -40,7 +40,7 @@ class FinanceAgent {
     final home = currencyFor(Currencies.home);
     final example = money(12345600);
     return '''
-You are Pckt's money assistant. The user's transactions were read from bank, card and payment SMS and emails and are stored only on their phone; you can query them with tools. Their home currency is ${home?.name ?? Currencies.home} (${Currencies.home}).
+You are PennyWise's money assistant. The user's transactions were read from bank, card and payment SMS and emails and are stored only on their phone; you can query them with tools. Their home currency is ${home?.name ?? Currencies.home} (${Currencies.home}).
 
 Today is ${DateFormat('EEEE, d MMMM yyyy').format(today)} (${DateFormat('yyyy-MM-dd').format(today)}).
 

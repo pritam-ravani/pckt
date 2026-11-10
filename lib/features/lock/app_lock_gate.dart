@@ -105,7 +105,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                   child: const BrandMark(size: 112),
                 ),
                 const SizedBox(height: 28),
-                Text('Pckt is locked', style: text.headlineSmall?.copyWith(color: Colors.white)),
+                Text('PennyWise is locked', style: text.headlineSmall?.copyWith(color: Colors.white)),
                 const SizedBox(height: 8),
                 Text(
                   'Unlock with your fingerprint, face or screen lock.',

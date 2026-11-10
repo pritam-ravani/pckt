@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../core/theme/palette.dart';
-
-/// The Pckt app icon: a white "P" whose bowl holds a mint coin, on the brand
+/// The PennyWise app icon: a white "P" whose bowl holds a gold penny, on the brand
 /// gradient. Same geometry and colours as the launcher icon
-/// (tool/gen_brand_assets.js, assets/branding/pckt-icon.svg).
+/// (tool/gen_brand_assets.js, assets/branding/pennywise-icon.svg).
 class BrandMark extends StatelessWidget {
   const BrandMark({super.key, this.size = 96});
   final double size;
@@ -59,7 +57,7 @@ class _MarkPainter extends CustomPainter {
         ..strokeJoin = StrokeJoin.round
         ..color = Colors.white,
     );
-    canvas.drawCircle(const Offset(bowlCx, cy), coinR, Paint()..color = Palette.mint);
+    canvas.drawCircle(const Offset(bowlCx, cy), coinR, Paint()..color = const Color(0xFFF5B83D));
     canvas.restore();
   }
 

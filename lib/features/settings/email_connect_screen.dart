@@ -150,7 +150,7 @@ class _EmailConnectScreenState extends ConsumerState<EmailConnectScreen> {
                 const SizedBox(width: 14),
                 Expanded(
                   child: Text(
-                    'Pckt only reads messages that look like bank alerts or receipts, on this phone. '
+                    'PennyWise only reads messages that look like bank alerts or receipts, on this phone. '
                     'Your password stays in the Android keystore and is only sent to your mail server.',
                     style: context.text.bodyMedium?.copyWith(color: context.colors.onSurfaceVariant),
                   ),
@@ -355,7 +355,7 @@ class _HowTo extends StatelessWidget {
         'Gmail needs an App Password',
         const [
           'Turn on 2-Step Verification: myaccount.google.com/security',
-          'Open myaccount.google.com/apppasswords, name it "Pckt" and tap Create',
+          'Open myaccount.google.com/apppasswords, name it "PennyWise" and tap Create',
           'Copy the 16-character password and paste it below (spaces are fine)',
         ],
         googleReady
@@ -377,7 +377,7 @@ class _HowTo extends StatelessWidget {
         'Yahoo Mail',
         const [
           'Open login.yahoo.com/account/security',
-          'Tap "Generate app password", name it "Pckt"',
+          'Tap "Generate app password", name it "PennyWise"',
           'Paste the password below',
         ],
         null,

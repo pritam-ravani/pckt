@@ -30,7 +30,7 @@ class DataExportTiles extends ConsumerWidget {
         onTap: () => _run(context, () async {
           final csv = await ref.read(dataExportProvider).transactionsCsv();
           if (!context.mounted) return;
-          await _deliver(context, 'pckt-transactions-${_stamp()}.csv', utf8.encode(csv), 'text/csv');
+          await _deliver(context, 'pennywise-transactions-${_stamp()}.csv', utf8.encode(csv), 'text/csv');
         }),
       ),
       ListTile(
@@ -40,7 +40,7 @@ class DataExportTiles extends ConsumerWidget {
         onTap: () => _run(context, () async {
           final json = await ref.read(dataExportProvider).backupJson();
           if (!context.mounted) return;
-          await _deliver(context, 'pckt-backup-${_stamp()}.json', utf8.encode(json), 'application/json');
+          await _deliver(context, 'pennywise-backup-${_stamp()}.json', utf8.encode(json), 'application/json');
         }),
       ),
       ListTile(
@@ -110,7 +110,7 @@ Future<void> _deliver(BuildContext context, String name, List<int> bytes, String
 }
 
 Future<void> _restore(BuildContext context, WidgetRef ref) async {
-  final picked = await FilePicker.pickFile(dialogTitle: 'Choose a Pckt backup');
+  final picked = await FilePicker.pickFile(dialogTitle: 'Choose a PennyWise backup');
   if (picked == null || !context.mounted) return;
   final json = utf8.decode(await picked.readAsBytes(), allowMalformed: true);
   final export = ref.read(dataExportProvider);
@@ -124,7 +124,7 @@ Future<void> _restore(BuildContext context, WidgetRef ref) async {
       content: Text(
         'This backup$when has ${summary.transactions} transactions, '
         '${summary.counts['accounts'] ?? 0} accounts and ${summary.counts['categories'] ?? 0} categories.\n\n'
-        'Everything currently in Pckt on this phone will be replaced. This cannot be undone.',
+        'Everything currently in PennyWise on this phone will be replaced. This cannot be undone.',
       ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),

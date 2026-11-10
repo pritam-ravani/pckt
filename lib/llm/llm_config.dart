@@ -116,7 +116,7 @@ abstract final class LlmPresets {
       label: 'On this phone (Gemma)',
       kind: LlmProviderKind.onDevice,
       keyRequired: false,
-      hint: 'Runs a Gemma model inside Pckt. Nothing leaves the phone; works offline after one download.',
+      hint: 'Runs a Gemma model inside PennyWise. Nothing leaves the phone; works offline after one download.',
     ),
   ];
 

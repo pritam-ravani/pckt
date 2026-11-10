@@ -17,6 +17,7 @@ import 'email_source_card.dart';
 import 'llm_status_card.dart';
 import 'sms_alerts_tile.dart';
 import 'security_card.dart';
+import 'statement_import_card.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -40,6 +41,8 @@ class SettingsScreen extends ConsumerWidget {
             const _SmsCard(),
             const SizedBox(height: 10),
             const EmailSourceCard(),
+            const SizedBox(height: 10),
+            const StatementImportCard(),
             const SizedBox(height: 10),
             const LlmStatusCard(),
             const SizedBox(height: 20),
@@ -141,6 +144,18 @@ class SettingsScreen extends ConsumerWidget {
                     },
                   ),
                 ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            const SectionHeader('About'),
+            AppCard(
+              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+              child: ListTile(
+                leading: const Icon(PhosphorIconsBold.info),
+                title: const Text('About PennyWise'),
+                subtitle: const Text('Version, source code and licences'),
+                trailing: const Icon(PhosphorIconsBold.caretRight, size: 16),
+                onTap: () => context.push('/about'),
               ),
             ),
           ],

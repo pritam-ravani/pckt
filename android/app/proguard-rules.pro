@@ -22,3 +22,14 @@
 
 # SQLCipher, SQLite and LiteRT-LM are native libraries loaded through Dart FFI
 # (no JNI classes to keep); enough_mail and drift are pure Dart.
+
+# shared_preferences_android and path_provider_android are called from Dart
+# through JNI, by exact name and signature, so R8 can't see those uses. Suspend
+# methods carry Continuation in that signature, so renaming it breaks startup.
+-keep class io.flutter.plugins.sharedpreferences.** { *; }
+-keep class kotlin.coroutines.** { *; }
+-keep class kotlin.Result$Failure { *; }
+-keep class kotlin.Result { *; }
+-keep class kotlin.Unit { *; }
+-keep class kotlin.enums.EnumEntries { *; }
+-keep class kotlin.jvm.internal.DefaultConstructorMarker { *; }

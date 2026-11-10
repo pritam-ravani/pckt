@@ -1,20 +1,10 @@
-<h1 align="center">Pckt</h1>
+<h1 align="center">PennyWise</h1>
 
-<p align="center"><b>A free, open-source finance tracker that fills itself in.</b></p>
+<p align="center"><b>A private, AI-assisted personal finance manager that fills itself in.</b></p>
 
-<p align="center">
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/pritam-ravani/pckt" alt="License: GPL-3.0"></a>
-  <img src="https://img.shields.io/badge/platform-Android%2011%2B-3DDC84?logo=android&logoColor=white" alt="Platform: Android 11+">
-  <a href="https://github.com/pritam-ravani/pckt/releases/latest"><img src="https://img.shields.io/github/v/release/pritam-ravani/pckt" alt="Latest release"></a>
-  <a href="https://github.com/pritam-ravani/pckt/stargazers"><img src="https://img.shields.io/github/stars/pritam-ravani/pckt?style=flat" alt="GitHub stars"></a>
-</p>
-
-<p align="center"><img src="assets/branding/ad/pckt-ad.gif" width="720" alt="Pckt in 30 seconds"></p>
-
-<p align="center">
-  <a href="https://github.com/pritam-ravani/pckt/releases/latest"><img src="https://img.shields.io/badge/Download-APK-6D5DF6?style=for-the-badge&logo=android&logoColor=white" alt="Download the APK" height="44"></a>
-  <br><sub>Android 11+, 64-bit · free, no account, no ads</sub>
-</p>
+> PennyWise is a modified version of [Pckt](https://github.com/pritam-ravani/pckt) by pritam-ravani,
+> licensed under GPL-3.0. Modifications began on 2026-11-10; see [NOTICE](NOTICE). Screens below were
+> captured from Pckt.
 
 <p align="center">
   <img src="assets/branding/screens/activity.png" width="250" alt="Activity: transactions read from bank SMS">
@@ -22,10 +12,10 @@
   <img src="assets/branding/screens/ask.png" width="250" alt="Ask: questions about your spending">
 </p>
 
-Pckt reads the bank, card and UPI alerts already arriving on your phone by SMS and email, turns them
+PennyWise reads the bank, card and UPI alerts already arriving on your phone by SMS and email, turns them
 into transactions, merges the copies, and sorts each one into a category. You don't type anything
 in. Everything stays in an encrypted database on your phone. If you want AI help, you connect your
-own LLM (cloud or on-device); Pckt has no server and no account.
+own LLM (cloud or on-device); PennyWise has no server and no account.
 
 Built for India first (Indian bank SMS formats, UPI references and VPAs, NACH/IMPS/NEFT, lakh/crore
 grouping), and works with 30+ currencies: pick your home currency, and spends abroad keep theirs.
@@ -53,7 +43,7 @@ send them to someone else's server.
 
 ## How it compares
 
-| | **Pckt** | **Oinkoin** | **Axio** (ex-Walnut) | **YNAB / Monarch** |
+| | **PennyWise** | **Oinkoin** | **Axio** (ex-Walnut) | **YNAB / Monarch** |
 |---|---|---|---|---|
 | Price | Free | Free, paid Pro | Free (makes money on loans / credit) | Subscription, about US$100/year |
 | Source | Open (GPL-3.0) | Open (GPL-3.0) | Closed | Closed |
@@ -66,12 +56,12 @@ send them to someone else's server.
 | Platforms | Android (iOS via Shortcuts, untested) | Android, Linux, Windows | Android, iOS | Web, iOS, Android |
 
 **Oinkoin** is the closest in spirit and the inspiration: open source, offline, no ads. But every
-entry is typed by hand, and backup and recurring records are Pro features. Pckt keeps that privacy and
+entry is typed by hand, and backup and recurring records are Pro features. PennyWise keeps that privacy and
 openness but does the data entry for you, and everything is free.
 
 **Paid and "free" commercial apps** either sync through bank aggregators (YNAB, Monarch; little Indian
 bank coverage, and a subscription), or read your SMS but pay for themselves with lending and credit
-products and keep your data in their cloud (Axio and similar Indian apps). Pckt reads the same SMS on
+products and keep your data in their cloud (Axio and similar Indian apps). PennyWise reads the same SMS on
 the device and has nothing to sell you.
 
 *Comparison based on each app's public pages as of October 2026; pricing and features change.*
@@ -80,7 +70,7 @@ the device and has nothing to sell you.
 
 - Automatic import from SMS (history + real-time alerts) and email (IMAP app passwords for Gmail,
   Outlook, Yahoo, Zoho or any server; optional Gmail OAuth)
-- Share any message or receipt into Pckt, plus a `pckt://ingest` link for iOS Shortcuts
+- Share any message or receipt into PennyWise, plus a `pckt://ingest` link for iOS Shortcuts
 - Dashboard, activity feed, insights charts, budgets per category, recurring payment detection
 - A home currency (31 to choose from, defaulted from the phone's region) for totals, budgets and the
   assistant; transactions and accounts keep their own currency, with correct decimals (¥1,200,
@@ -93,22 +83,22 @@ the device and has nothing to sell you.
 
 ## Install
 
-1. Download `pckt-v*.apk` from [Releases](https://github.com/pritam-ravani/pckt/releases).
-2. Open it on your phone and allow installing from your browser/files app.
-3. Grant SMS access when Pckt asks. It reads your inbox once, then keeps up as new alerts arrive.
+1. Build it with `flutter build apk --release` (see [ARCHITECTURE.md](ARCHITECTURE.md)).
+2. Open the APK on your phone and allow installing from your browser/files app.
+3. Grant SMS access when PennyWise asks. It reads your inbox once, then keeps up as new alerts arrive.
 
 ## Setup guides
 
 <details>
 <summary><b>Connect your email</b></summary>
 
-Settings → Sources → Email → Connect. Pckt only downloads mail from known bank, card, UPI and
+Settings → Sources → Email → Connect. PennyWise only downloads mail from known bank, card, UPI and
 merchant senders (or with payment words in the subject) and runs it through the same pipeline as
 SMS, so an email and its SMS become one transaction. The password is kept in the Android keystore.
 
 | Provider | Steps | Server |
 |---|---|---|
-| Gmail | Turn on 2-Step Verification (myaccount.google.com/security) → myaccount.google.com/apppasswords → create "Pckt" → paste the 16 characters | imap.gmail.com:993 |
+| Gmail | Turn on 2-Step Verification (myaccount.google.com/security) → myaccount.google.com/apppasswords → create "PennyWise" → paste the 16 characters | imap.gmail.com:993 |
 | Outlook / Hotmail | Two-step verification → Advanced security options → app password. Microsoft is phasing out password IMAP for personal accounts; if it fails, forward alerts to Gmail/Zoho | outlook.office365.com:993 |
 | Yahoo | login.yahoo.com/account/security → Generate app password | imap.mail.yahoo.com:993 |
 | Zoho | Enable IMAP access in Mail settings; with 2FA create an app-specific password | imap.zoho.in:993 (imap.zoho.com outside India) |
@@ -123,7 +113,7 @@ SMS, so an email and its SMS become one transaction. The password is kept in the
 <summary><b>Connect an AI (your own key or on the phone)</b></summary>
 
 Settings → *Connect your LLM*. Requests go straight from the phone to the provider you
-pick; there is no Pckt server. Models are listed live from the provider's models endpoint
+pick; there is no PennyWise server. Models are listed live from the provider's models endpoint
 (free text works too).
 
 | Provider | API | Notes |
@@ -160,7 +150,7 @@ matching switch is on:
 
 #### On-device models
 
-Settings → Connect your LLM → *On this phone (Gemma)*. Pckt recommends the most capable model that
+Settings → Connect your LLM → *On this phone (Gemma)*. PennyWise recommends the most capable model that
 fits your phone:
 
 | Model | Download | Picked when | Ask tab |
@@ -181,7 +171,7 @@ Models download once, over Wi-Fi only (mobile data is never used without asking)
 - **Home currency.** Chosen at onboarding (defaulted from the phone's region) and in
   Settings → Money → Currency. Existing installs keep INR. Totals, budgets, charts, notifications,
   the assistant and its tools use it. Budgets remember their currency and pause if you switch.
-- **Foreign transactions.** Pckt has no server and never fetches exchange rates. A message that
+- **Foreign transactions.** PennyWise has no server and never fetches exchange rates. A message that
   states the home-currency equivalent is stored with both amounts and counts at once. Otherwise the
   transaction keeps its own currency, is shown with "not in totals", and you add what the bank
   charged (or a rate) from the transaction; until then it is left out of totals rather than guessed.
@@ -194,18 +184,18 @@ Models download once, over Wi-Fi only (mobile data is never used without asking)
 <details>
 <summary><b>Instant alerts</b></summary>
 
-When a bank SMS arrives, Pckt posts *"₹250 debited · HDFC — Tap to review"*. Tapping opens Pckt,
+When a bank SMS arrives, PennyWise posts *"₹250 debited · HDFC — Tap to review"*. Tapping opens PennyWise,
 which adds it. Turn it off in Settings → SMS → *Instant alerts*.
 
 </details>
 
 <details>
-<summary><b>Share to Pckt & iOS Shortcuts</b></summary>
+<summary><b>Share to PennyWise & iOS Shortcuts</b></summary>
 
 Any text can be fed through the normal pipeline (parse → dedup → categorise → store) as source
 `shortcut`; a snackbar says whether it was added, matched an existing transaction or ignored.
 
-- **Android share sheet:** long-press a bank SMS → Share → Pckt.
+- **Android share sheet:** long-press a bank SMS → Share → PennyWise.
 - **Link:** `pckt://ingest?text=<url-encoded message>&sender=<url-encoded sender>` (`sender` is
   optional; without it the bank is guessed from the text). Works on Android and iOS.
 
@@ -218,7 +208,7 @@ iOS gives apps no SMS access, but a Shortcuts automation can forward each bank m
 4. Add **Text**: `pckt://ingest?text=` *URL Encoded Text (1)* `&sender=` *URL Encoded Text (2)*.
 5. Add **Open URLs** with that Text.
 
-Each matching message then opens Pckt briefly and shows what was recorded. Sharing the same message
+Each matching message then opens PennyWise briefly and shows what was recorded. Sharing the same message
 twice is a no-op (content-hashed id), and a message that also arrives by email is merged by dedup.
 
 </details>
@@ -244,14 +234,17 @@ Files go out through the share sheet or a *Save to device* dialog.
 
 ## Contributing
 
-Issues and pull requests are welcome, especially **SMS and email formats from banks Pckt doesn't
+Issues and pull requests are welcome, especially **SMS and email formats from banks PennyWise doesn't
 read yet**. See [CONTRIBUTING.md](CONTRIBUTING.md). Please remove real names, account numbers and
 references from any sample message you share.
 
 ## License
 
-[GPL-3.0](LICENSE). You can use, study, change and share Pckt. If you distribute a modified
+[GPL-3.0](LICENSE). You can use, study, change and share PennyWise. If you distribute a modified
 version, you must publish its source under the same license.
+
+Based on [Pckt](https://github.com/pritam-ravani/pckt) by pritam-ravani. See [NOTICE](NOTICE) for
+attribution and third-party fonts.
 
 ## Roadmap
 

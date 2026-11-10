@@ -1,0 +1,22 @@
+PennyWise
+A personal finance manager for Android.
+Source code: https://github.com/sahilkarande/pckt-pennywise
+
+PennyWise is a modified version of Pckt by pritam-ravani
+(https://github.com/pritam-ravani/pckt), used under the GNU General Public
+License, version 3. Modifications began on 2026-11-10. The commit history of the
+repository above records each change.
+
+Copyright (C) the Pckt authors and PennyWise contributors.
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, version 3 of the License. See the LICENSE file.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+Bundled fonts (SIL Open Font License 1.1, in assets/google_fonts/):
+  Inter, Copyright 2020 The Inter Project Authors
+  Manrope, Copyright 2018 The Manrope Project Authors

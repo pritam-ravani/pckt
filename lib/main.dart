@@ -6,15 +6,20 @@ import 'package:flutter/services.dart';
 import 'package:flutter_edge_ai/flutter_edge_ai.dart';
 import 'package:flutter_edge_ai_litertlm/flutter_edge_ai_litertlm.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app.dart';
+import 'core/licenses.dart';
 import 'ingestion/share/share_intake.dart';
 import 'llm/on_device/on_device_client.dart';
 import 'providers.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Fonts ship in assets/google_fonts; the app never fetches them.
+  GoogleFonts.config.allowRuntimeFetching = false;
+  registerBundledLicenses();
   // Before runApp: its route observer must precede the router's (iOS links).
   IncomingShares.instance.start();
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);

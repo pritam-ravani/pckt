@@ -253,6 +253,14 @@ class AppDatabase extends _$AppDatabase {
           }))
           .get();
 
+  /// Latest non-transfer transactions with a merchant name, newest first.
+  Future<List<Transaction>> recentWithMerchant(TxnDirection direction, {int limit = 300}) =>
+      (select(transactions)
+            ..where((t) => t.direction.equalsValue(direction) & t.isTransfer.equals(false) & t.merchant.isNotNull())
+            ..orderBy([(t) => OrderingTerm.desc(t.occurredAt), (t) => OrderingTerm.desc(t.id)])
+            ..limit(limit))
+          .get();
+
   Future<List<RawMessage>> sourcesOf(int txnId) =>
       (select(rawMessages)..where((m) => m.transactionId.equals(txnId))).get();
 
@@ -323,6 +331,7 @@ class AppDatabase extends _$AppDatabase {
     int? categoryId,
     int? accountId,
     String? note,
+    PaymentMode mode = PaymentMode.cash,
   }) => transaction(() async {
     final id = await into(transactions).insert(
       TransactionsCompanion.insert(
@@ -336,7 +345,7 @@ class AppDatabase extends _$AppDatabase {
         categoryId: Value(categoryId),
         accountId: Value(accountId),
         note: Value(note),
-        mode: PaymentMode.cash,
+        mode: mode,
         status: TxnStatus.confirmed,
         categoryLocked: const Value(true),
       ),

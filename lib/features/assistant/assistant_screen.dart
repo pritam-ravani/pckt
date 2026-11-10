@@ -72,7 +72,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
                 children: [
                   const Icon(PhosphorIconsFill.sparkle, color: Palette.violet),
                   const SizedBox(width: 10),
-                  Expanded(child: Text('Ask Pckt', style: context.text.headlineSmall)),
+                  Expanded(child: Text('Ask PennyWise', style: context.text.headlineSmall)),
                   if (chat.entries.isNotEmpty)
                     IconButton(
                       tooltip: 'New chat',

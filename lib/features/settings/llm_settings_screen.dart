@@ -357,7 +357,7 @@ class _LlmSettingsScreenState extends ConsumerState<LlmSettingsScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 4),
             child: Text(
               'Nothing is sent until a provider is saved and a switch is on. Requests go straight from this phone '
-              'to the provider you chose — Pckt has no server.',
+              'to the provider you chose — PennyWise has no server.',
               style: context.text.bodySmall?.copyWith(color: context.colors.onSurfaceVariant),
             ),
           ),
