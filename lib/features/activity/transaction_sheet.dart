@@ -288,6 +288,7 @@ class _SourceCard extends StatelessWidget {
       SourceKind.manual => PhosphorIconsFill.pencilSimple,
       SourceKind.shortcut => PhosphorIconsFill.lightning,
       SourceKind.statement => PhosphorIconsFill.bookOpen,
+      SourceKind.notification => PhosphorIconsFill.lightning,
     };
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),

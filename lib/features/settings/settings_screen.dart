@@ -16,6 +16,7 @@ import '../budgets/budget_providers.dart';
 import 'email_source_card.dart';
 import 'llm_status_card.dart';
 import 'sms_alerts_tile.dart';
+import 'payment_alerts_card.dart';
 import 'security_card.dart';
 import 'statement_import_card.dart';
 
@@ -44,6 +45,8 @@ class SettingsScreen extends ConsumerWidget {
             const SizedBox(height: 10),
             const StatementImportCard(),
             const SizedBox(height: 10),
+            const PaymentAlertsCard(),
+            const SizedBox(height: 10),
             const LlmStatusCard(),
             const SizedBox(height: 20),
             const SectionHeader('Money'),
@@ -58,6 +61,13 @@ class SettingsScreen extends ConsumerWidget {
                     subtitle: const Text('Monthly and per-category limits'),
                     trailing: const Icon(PhosphorIconsBold.caretRight, size: 16),
                     onTap: () => context.push('/budgets'),
+                  ),
+                  ListTile(
+                    leading: const Icon(PhosphorIconsRegular.coins),
+                    title: const Text('Salary & payslips'),
+                    subtitle: const Text('Gross, deductions and what you keep'),
+                    trailing: const Icon(PhosphorIconsBold.caretRight, size: 16),
+                    onTap: () => context.push('/salary'),
                   ),
                   SwitchListTile(
                     secondary: const Icon(PhosphorIconsRegular.bellRinging),

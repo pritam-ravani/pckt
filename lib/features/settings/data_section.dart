@@ -11,6 +11,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../core/theme/icons.dart';
 import '../../core/theme/palette.dart';
+import '../../data/backup/backup_crypto.dart';
 import '../../data/backup/data_export.dart';
 import '../../providers.dart';
 
@@ -36,11 +37,15 @@ class DataExportTiles extends ConsumerWidget {
       ListTile(
         leading: const Icon(PhosphorIconsRegular.archive),
         title: const Text('Back up everything'),
-        subtitle: const Text('Accounts, categories, transactions, messages and rules as JSON'),
+        subtitle: const Text('Everything, protected with a password you choose'),
         onTap: () => _run(context, () async {
+          final password = await _askPassword(context, creating: true);
+          if (password == null) return;
           final json = await ref.read(dataExportProvider).backupJson();
           if (!context.mounted) return;
-          await _deliver(context, 'pennywise-backup-${_stamp()}.json', utf8.encode(json), 'application/json');
+          final locked = await _whileWorking(context, 'Encrypting your backup…', BackupCrypto.encrypt(json, password));
+          if (!context.mounted) return;
+          await _deliver(context, 'pennywise-backup-${_stamp()}.json', utf8.encode(locked), 'application/json');
         }),
       ),
       ListTile(
@@ -51,6 +56,17 @@ class DataExportTiles extends ConsumerWidget {
       ),
     ],
   );
+}
+
+/// Key derivation takes a few seconds, so say something is happening.
+Future<T> _whileWorking<T>(BuildContext context, String message, Future<T> job) async {
+  final messenger = ScaffoldMessenger.of(context);
+  messenger.showSnackBar(SnackBar(content: Text(message), duration: const Duration(minutes: 1)));
+  try {
+    return await job;
+  } finally {
+    messenger.hideCurrentSnackBar();
+  }
 }
 
 String _stamp() => DateFormat('yyyyMMdd-HHmm').format(DateTime.now());
@@ -109,10 +125,87 @@ Future<void> _deliver(BuildContext context, String name, List<int> bytes, String
   );
 }
 
+/// Asks for the backup's password; null if cancelled. When [creating], it
+/// is typed twice and must be long enough, since it can't be recovered.
+Future<String?> _askPassword(BuildContext context, {required bool creating}) => showDialog<String>(
+  context: context,
+  builder: (_) => _PasswordDialog(creating: creating),
+);
+
+class _PasswordDialog extends StatefulWidget {
+  const _PasswordDialog({required this.creating});
+  final bool creating;
+
+  @override
+  State<_PasswordDialog> createState() => _PasswordDialogState();
+}
+
+class _PasswordDialogState extends State<_PasswordDialog> {
+  final _password = TextEditingController();
+  final _repeat = TextEditingController();
+  String? _error;
+
+  @override
+  void dispose() {
+    _password.dispose();
+    _repeat.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final value = _password.text;
+    if (widget.creating && value.length < BackupCrypto.minPasswordLength) {
+      setState(() => _error = 'Use at least ${BackupCrypto.minPasswordLength} characters.');
+    } else if (widget.creating && value != _repeat.text) {
+      setState(() => _error = 'The passwords don\'t match.');
+    } else if (value.isNotEmpty) {
+      Navigator.pop(context, value);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text(widget.creating ? 'Protect this backup' : 'Enter the backup password'),
+    content: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (widget.creating) ...[
+          const Text('If you forget this password, the backup can\'t be opened by anyone.'),
+          const SizedBox(height: 12),
+        ],
+        TextField(
+          controller: _password,
+          obscureText: true,
+          autofocus: true,
+          decoration: InputDecoration(labelText: 'Password', errorText: widget.creating ? null : _error),
+        ),
+        if (widget.creating)
+          TextField(
+            controller: _repeat,
+            obscureText: true,
+            decoration: InputDecoration(labelText: 'Repeat password', errorText: _error),
+          ),
+      ],
+    ),
+    actions: [
+      TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+      TextButton(onPressed: _submit, child: const Text('Continue')),
+    ],
+  );
+}
+
 Future<void> _restore(BuildContext context, WidgetRef ref) async {
   final picked = await FilePicker.pickFile(dialogTitle: 'Choose a PennyWise backup');
   if (picked == null || !context.mounted) return;
-  final json = utf8.decode(await picked.readAsBytes(), allowMalformed: true);
+  var json = utf8.decode(await picked.readAsBytes(), allowMalformed: true);
+  if (BackupCrypto.isEncrypted(json)) {
+    if (!context.mounted) return;
+    final password = await _askPassword(context, creating: false);
+    if (password == null) return;
+    if (!context.mounted) return;
+    json = await _whileWorking(context, 'Unlocking your backup…', BackupCrypto.decrypt(json, password));
+  }
+  if (!context.mounted) return;
   final export = ref.read(dataExportProvider);
   final summary = export.inspect(json);
   if (!context.mounted) return;

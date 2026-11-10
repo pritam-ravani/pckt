@@ -1,7 +1,7 @@
 import 'package:drift/drift.dart';
 
 /// Where a piece of evidence came from.
-enum SourceKind { sms, email, manual, shortcut, statement }
+enum SourceKind { sms, email, manual, shortcut, statement, notification }
 
 enum TxnDirection { debit, credit }
 
@@ -15,6 +15,10 @@ enum TxnStatus { confirmed, needsReview }
 enum ParseStatus { parsed, merged, ignored, failed, pendingLlm }
 
 enum AccountKind { bank, creditCard, wallet, cash }
+
+/// Earnings minus deductions is net pay. Employer contributions are shown
+/// but are part of neither.
+enum PayslipLineKind { earning, deduction, employerContribution }
 
 class Accounts extends Table {
   IntColumn get id => integer().autoIncrement()();
@@ -126,6 +130,43 @@ class Budgets extends Table {
   TextColumn get currency => text().withDefault(const Constant('INR'))();
   BoolColumn get active => boolean().withDefault(const Constant(true))();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+}
+
+/// One month's pay from one employer. Deductions live only here and never
+/// become transactions, otherwise they would count against net pay twice.
+class Payslips extends Table {
+  IntColumn get id => integer().autoIncrement()();
+
+  /// First day of the month the pay is for.
+  DateTimeColumn get month => dateTime()();
+  TextColumn get employer => text().withDefault(const Constant(''))();
+  DateTimeColumn get payDate => dateTime().nullable()();
+  TextColumn get currency => text().withDefault(const Constant('INR'))();
+  TextColumn get note => text().nullable()();
+
+  /// The bank credit this payslip was paid by.
+  IntColumn get salaryTxnId => integer().nullable().references(Transactions, #id, onDelete: KeyAction.setNull)();
+
+  /// False once the user has rejected a match, so it isn't made again.
+  BoolColumn get autoMatch => boolean().withDefault(const Constant(true))();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  List<Set<Column>> get uniqueKeys => [
+    {month, employer},
+  ];
+}
+
+class PayslipLines extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get payslipId => integer().references(Payslips, #id, onDelete: KeyAction.cascade)();
+  IntColumn get kind => intEnum<PayslipLineKind>()();
+
+  /// Stable key of a standard line ("pf", "food"); empty for custom lines.
+  TextColumn get code => text().withDefault(const Constant(''))();
+  TextColumn get label => text()();
+  IntColumn get amountMinor => integer()();
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
 }
 
 /// Learned "merchant → category" mappings, created when the user
