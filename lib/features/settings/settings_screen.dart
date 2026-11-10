@@ -59,6 +59,13 @@ class SettingsScreen extends ConsumerWidget {
                     trailing: const Icon(PhosphorIconsBold.caretRight, size: 16),
                     onTap: () => context.push('/budgets'),
                   ),
+                  ListTile(
+                    leading: const Icon(PhosphorIconsRegular.coins),
+                    title: const Text('Salary & payslips'),
+                    subtitle: const Text('Gross, deductions and what you keep'),
+                    trailing: const Icon(PhosphorIconsBold.caretRight, size: 16),
+                    onTap: () => context.push('/salary'),
+                  ),
                   SwitchListTile(
                     secondary: const Icon(PhosphorIconsRegular.bellRinging),
                     title: const Text('Budget alerts'),

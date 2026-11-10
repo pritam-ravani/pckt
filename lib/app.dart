@@ -13,6 +13,9 @@ import 'features/lock/app_lock_gate.dart';
 import 'features/onboarding/onboarding_screen.dart';
 import 'data/db/tables.dart';
 import 'features/recurring/recurring_screen.dart';
+import 'features/salary/payslip_detail_screen.dart';
+import 'features/salary/payslip_editor_screen.dart';
+import 'features/salary/salary_screen.dart';
 import 'features/settings/about_screen.dart';
 import 'features/settings/accounts_screen.dart';
 import 'features/settings/categories_screen.dart';
@@ -44,6 +47,13 @@ final _routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/llm', builder: (_, _) => const LlmSettingsScreen()),
       GoRoute(path: '/budgets', builder: (_, _) => const BudgetsScreen()),
       GoRoute(path: '/recurring', builder: (_, _) => const RecurringScreen()),
+      GoRoute(path: '/salary', builder: (_, _) => const SalaryScreen()),
+      GoRoute(path: '/salary/new', builder: (_, _) => const PayslipEditorScreen()),
+      GoRoute(path: '/salary/:id', builder: (_, s) => PayslipDetailScreen(id: int.parse(s.pathParameters['id']!))),
+      GoRoute(
+        path: '/salary/:id/edit',
+        builder: (_, s) => PayslipEditorScreen(id: int.parse(s.pathParameters['id']!)),
+      ),
       GoRoute(path: '/about', builder: (_, _) => const AboutScreen()),
       GoRoute(path: '/settings/accounts', builder: (_, _) => const AccountsScreen()),
       GoRoute(path: '/settings/categories', builder: (_, _) => const CategoriesScreen()),

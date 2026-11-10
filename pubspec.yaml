@@ -61,6 +61,7 @@ dependencies:
   local_auth: ^3.0.2
   archive: ^4.5.2 # reads .xlsx statements (with xml)
   xml: ^6.6.1
+  pointycastle: ^4.0.0 # password-encrypted backups
 dev_dependencies:
   flutter_test:
     sdk: flutter

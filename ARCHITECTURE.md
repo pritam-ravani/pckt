@@ -207,6 +207,8 @@ Android 13+ also needs the notification permission, which PennyWise asks for onc
 - **App lock** (Settings → Security, off by default): fingerprint / face / screen lock on a cold start
   and after more than 2 minutes in the background. Turning it on requires one successful unlock; if the
   phone's screen lock is later removed, the app lock switches itself off instead of locking you out.
+- **Encrypted backups.** "Back up everything" asks for a password and writes AES-256-GCM with a PBKDF2-SHA256
+  key (`lib/data/backup/backup_crypto.dart`). A lost password cannot be recovered. Older plain backups still restore.
 - **Hide in recent apps** sets `FLAG_SECURE` (blank app-switcher thumbnail, no screenshots), applied
   natively before the first frame.
 
