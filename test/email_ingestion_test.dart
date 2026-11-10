@@ -76,7 +76,7 @@ void main() {
       expect(view.txn.reference, '528512345678');
       expect(view.txn.accountHint, '4521');
       expect(view.txn.status, TxnStatus.confirmed);
-      expect(view.category?.name, 'Food & Dining');
+      expect(view.category?.name, 'Food Delivery');
     });
 
     test('receipt first, bank SMS later keeps the receipt merchant', () async {
@@ -104,7 +104,7 @@ void main() {
       ]);
       final view = (await db.watchTxns().first).single;
       expect(view.txn.merchant, 'Swiggy');
-      expect(view.category?.name, 'Food & Dining');
+      expect(view.category?.name, 'Food Delivery');
     });
 
     test('same amount, hours apart, different merchants → two transactions', () async {

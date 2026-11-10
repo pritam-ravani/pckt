@@ -160,30 +160,30 @@ void main() {
 
     String? categoryOf(String sender, String body) => names[cat.categorize(ok(sender, body), body)];
 
-    test('Indian Railways → Transport', () {
+    test('Indian Railways → Bus & Train Tickets', () {
       expect(
         categoryOf(
           'AD-HDFCBK-S',
           'Spent Rs.30 From HDFC Bank Card x1234 At INDIAN RAILWAYS On 2026-09-06:10:11:12 Bal Rs.5000.00',
         ),
-        'Transport',
+        'Bus & Train Tickets',
       );
     });
 
-    test('UTS ticket → Transport', () {
+    test('UTS ticket → Metro & Local', () {
       expect(
         categoryOf(
           'VM-HDFCBK-S',
           'Sent Rs.15.00\nFrom HDFC Bank A/C *4521\nTo UTS MOBILE TICKET\nOn 06/09/26\nRef 624912345678',
         ),
-        'Transport',
+        'Metro & Local',
       );
     });
 
-    test('IRCTC UPI → Transport', () {
+    test('IRCTC UPI → Bus & Train Tickets', () {
       expect(
         categoryOf('VM-HDFCBK-S', 'Sent Rs.845.00\nFrom HDFC Bank A/C *4521\nTo IRCTC\nOn 06/09/26\nRef 624912345678'),
-        'Transport',
+        'Bus & Train Tickets',
       );
     });
 

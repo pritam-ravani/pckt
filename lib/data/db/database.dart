@@ -76,7 +76,7 @@ class AppDatabase extends _$AppDatabase {
   static const protectedCategories = {'Transfers', 'Other'};
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -113,6 +113,8 @@ class AppDatabase extends _$AppDatabase {
         await m.createTable(payslips);
         await m.createTable(payslipLines);
       }
+      // v6: more everyday categories. Matched by name, so nothing is duplicated.
+      if (from < 6) await _addMissingSeedCategories();
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
