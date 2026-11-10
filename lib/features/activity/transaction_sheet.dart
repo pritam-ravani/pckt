@@ -287,6 +287,7 @@ class _SourceCard extends StatelessWidget {
       SourceKind.email => PhosphorIconsFill.envelopeSimple,
       SourceKind.manual => PhosphorIconsFill.pencilSimple,
       SourceKind.shortcut => PhosphorIconsFill.lightning,
+      SourceKind.statement => PhosphorIconsFill.bookOpen,
     };
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),

@@ -59,6 +59,8 @@ dependencies:
   sqlite3: ^3.5.2 # SQLCipher build, selected under hooks.user_defines below
   path: ^1.9.1
   local_auth: ^3.0.2
+  archive: ^4.5.2 # reads .xlsx statements (with xml)
+  xml: ^6.6.1
 dev_dependencies:
   flutter_test:
     sdk: flutter

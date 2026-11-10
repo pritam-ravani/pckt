@@ -35,6 +35,8 @@ class ParsedTxn {
     this.institution,
     this.isPersonToPerson = false,
     this.transferHint = false,
+    this.categoryId,
+    this.note,
   });
 
   /// In minor units of [currency].
@@ -64,6 +66,13 @@ class ParsedTxn {
   /// Message itself suggests a movement between own accounts
   /// (credit-card bill payment, "to self", etc.).
   final bool transferHint;
+
+  /// Category the source already decided on, e.g. a tag the user set in
+  /// another app. Null lets the categoriser choose.
+  final int? categoryId;
+
+  /// The user's own remark from the source.
+  final String? note;
 
   @override
   String toString() =>
