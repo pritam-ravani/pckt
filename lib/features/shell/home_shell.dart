@@ -7,6 +7,7 @@ import '../../core/theme/icons.dart';
 import '../../ingestion/email/email_sync.dart';
 import '../../ingestion/ingestion_service.dart';
 import '../../llm/llm_providers.dart';
+import '../capture/payment_capture.dart';
 import '../../providers.dart';
 import '../activity/add_transaction_sheet.dart';
 import 'share_outcome.dart';
@@ -28,14 +29,23 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   void initState() {
     super.initState();
     // Pull new SMS (and email) whenever the app comes to the foreground.
-    _lifecycle = AppLifecycleListener(onResume: _sync);
+    _lifecycle = AppLifecycleListener(onResume: _resume);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await _sync();
+      await _resume();
       await ref.read(smsAlertsProvider.notifier).ensurePermission();
     });
   }
 
+  Future<void> _resume() async {
+    await _sync();
+    // Opened from a payment prompt: go where that payment is waiting.
+    if (await ref.read(paymentCaptureChannelProvider).takeOpenReview() && mounted) {
+      context.go('/activity?filter=review');
+    }
+  }
+
   Future<void> _sync() => Future.wait([
+    ref.read(paymentCaptureProvider).drain().then(_announce),
     ref.read(smsSyncProvider.notifier).sync().then(_announce),
     ref.read(emailSyncProvider.notifier).syncIfDue().then(_announce),
   ]);

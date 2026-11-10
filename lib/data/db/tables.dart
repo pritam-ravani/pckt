@@ -1,7 +1,7 @@
 import 'package:drift/drift.dart';
 
 /// Where a piece of evidence came from.
-enum SourceKind { sms, email, manual, shortcut, statement }
+enum SourceKind { sms, email, manual, shortcut, statement, notification }
 
 enum TxnDirection { debit, credit }
 

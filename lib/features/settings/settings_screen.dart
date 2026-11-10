@@ -16,6 +16,7 @@ import '../budgets/budget_providers.dart';
 import 'email_source_card.dart';
 import 'llm_status_card.dart';
 import 'sms_alerts_tile.dart';
+import 'payment_alerts_card.dart';
 import 'security_card.dart';
 import 'statement_import_card.dart';
 
@@ -43,6 +44,8 @@ class SettingsScreen extends ConsumerWidget {
             const EmailSourceCard(),
             const SizedBox(height: 10),
             const StatementImportCard(),
+            const SizedBox(height: 10),
+            const PaymentAlertsCard(),
             const SizedBox(height: 10),
             const LlmStatusCard(),
             const SizedBox(height: 20),

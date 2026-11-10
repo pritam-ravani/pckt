@@ -188,6 +188,15 @@ the receiver itself stores nothing, so the Dart pipeline stays the source of tru
 Settings → SMS → *Instant alerts* (pref `sms.alerts`, read natively as `flutter.sms.alerts`).
 Android 13+ also needs the notification permission, which PennyWise asks for once.
 
+## Payment app notifications (Android)
+
+`PaymentNotificationListener.kt` reads completed payments from Google Pay, Paytm and PhonePe, and drops every other
+app's notifications unread. It is off until Settings → Sources → *Payment app alerts* is on. Payments wait in
+`payment_queue.json` until the app opens, then enter the encrypted database through the normal pipeline
+(`lib/features/capture/payment_capture.dart`) as *needs review*, or confirmed if a category button was tapped.
+To tune the parser, `adb logcat -s pw-notif` shows each notification's wording with names and numbers hidden.
+Run its tests with `./gradlew :app:testDebugUnitTest` from `android/`.
+
 ## Security
 
 - **Encrypted database.** `pckt.sqlite` is a SQLCipher 4 database (AES-256). `package:sqlite3` bundles
