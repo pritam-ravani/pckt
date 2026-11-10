@@ -59,6 +59,7 @@ class PaymentCaptureChannel {
   Future<void> openAccessSettings() => _channel.invokeMethod('openAccessSettings');
   Future<void> openAppDetails() => _channel.invokeMethod('openAppDetails');
   Future<bool> takeOpenReview() async => isSupported && (await _channel.invokeMethod<bool>('takeOpenReview') ?? false);
+  Future<bool> takeOpenAdd() async => isSupported && (await _channel.invokeMethod<bool>('takeOpenAdd') ?? false);
 
   Future<List<CapturedPayment>> pending() async {
     if (!isSupported) return const [];
