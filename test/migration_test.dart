@@ -23,7 +23,7 @@ void main() {
     expect(
       file.existsSync(),
       isTrue,
-      reason: 'Bumped schemaVersion? Dump a snapshot: see "Schema migrations" in ARCHITECTURE.md.',
+      reason: 'Bumped schemaVersion? Dump a snapshot: see "Schema and migrations" in TECHNICAL.md.',
     );
   });
 
