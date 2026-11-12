@@ -49,6 +49,11 @@ object PaymentQueue {
         }
     }
 
+    /** Payments still waiting for a category, for the check-in reminder. */
+    @Synchronized
+    fun waitingCount(context: Context): Int =
+        read(context).objects().count { !it.optBoolean("choiceOnly") && it.isNull("category") }
+
     @Synchronized
     fun all(context: Context): String = read(context).toString()
 

@@ -69,6 +69,13 @@ class SettingsScreen extends ConsumerWidget {
                     trailing: const Icon(PhosphorIconsBold.caretRight, size: 16),
                     onTap: () => context.push('/salary'),
                   ),
+                  ListTile(
+                    leading: const Icon(PhosphorIconsRegular.clock),
+                    title: const Text('Reminders'),
+                    subtitle: const Text('Nudges to review or add transactions'),
+                    trailing: const Icon(PhosphorIconsBold.caretRight, size: 16),
+                    onTap: () => context.push('/reminders'),
+                  ),
                   SwitchListTile(
                     secondary: const Icon(PhosphorIconsRegular.bellRinging),
                     title: const Text('Budget alerts'),

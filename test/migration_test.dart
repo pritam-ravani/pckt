@@ -33,4 +33,14 @@ void main() {
     addTearDown(db.close);
     await verifier.migrateAndValidate(db, db.schemaVersion);
   });
+
+  test('upgrading from v5 adds the new categories without duplicating any', () async {
+    final schema = await verifier.schemaAt(5);
+    final db = AppDatabase(schema.newConnection());
+    addTearDown(db.close);
+    await verifier.migrateAndValidate(db, db.schemaVersion);
+    final names = (await db.allCategories()).map((c) => c.name).toList();
+    expect(names, containsAll(['Food Delivery', 'Tiffin & Mess', 'Cab & Auto', 'Family Support', 'Bonus']));
+    expect(names.toSet(), hasLength(names.length));
+  });
 }

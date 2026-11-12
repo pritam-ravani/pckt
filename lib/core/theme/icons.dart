@@ -4,6 +4,26 @@
 import 'package:flutter/widgets.dart';
 
 abstract final class PhosphorIconsFill {
+  static const hamburger = IconData(0xe790, fontFamily: 'PhosphorFill', fontPackage: 'phosphor_flutter');
+  static const cookingPot = IconData(0xe764, fontFamily: 'PhosphorFill', fontPackage: 'phosphor_flutter');
+  static const wine = IconData(0xe6b2, fontFamily: 'PhosphorFill', fontPackage: 'phosphor_flutter');
+  static const cigarette = IconData(0xed90, fontFamily: 'PhosphorFill', fontPackage: 'phosphor_flutter');
+  static const broom = IconData(0xec54, fontFamily: 'PhosphorFill', fontPackage: 'phosphor_flutter');
+  static const washingMachine = IconData(0xede8, fontFamily: 'PhosphorFill', fontPackage: 'phosphor_flutter');
+  static const armchair = IconData(0xe012, fontFamily: 'PhosphorFill', fontPackage: 'phosphor_flutter');
+  static const train = IconData(0xe496, fontFamily: 'PhosphorFill', fontPackage: 'phosphor_flutter');
+  static const bus = IconData(0xe106, fontFamily: 'PhosphorFill', fontPackage: 'phosphor_flutter');
+  static const motorcycle = IconData(0xe80a, fontFamily: 'PhosphorFill', fontPackage: 'phosphor_flutter');
+  static const laptop = IconData(0xe586, fontFamily: 'PhosphorFill', fontPackage: 'phosphor_flutter');
+  static const stethoscope = IconData(0xe7ea, fontFamily: 'PhosphorFill', fontPackage: 'phosphor_flutter');
+  static const confetti = IconData(0xe81a, fontFamily: 'PhosphorFill', fontPackage: 'phosphor_flutter');
+  static const usersThree = IconData(0xe68e, fontFamily: 'PhosphorFill', fontPackage: 'phosphor_flutter');
+  static const flowerLotus = IconData(0xe6cc, fontFamily: 'PhosphorFill', fontPackage: 'phosphor_flutter');
+  static const fire = IconData(0xe242, fontFamily: 'PhosphorFill', fontPackage: 'phosphor_flutter');
+  static const heart = IconData(0xe2a8, fontFamily: 'PhosphorFill', fontPackage: 'phosphor_flutter');
+  static const car = IconData(0xe112, fontFamily: 'PhosphorFill', fontPackage: 'phosphor_flutter');
+  static const bed = IconData(0xe0cc, fontFamily: 'PhosphorFill', fontPackage: 'phosphor_flutter');
+  static const scales = IconData(0xe750, fontFamily: 'PhosphorFill', fontPackage: 'phosphor_flutter');
   static const airplane = IconData(0xe002, fontFamily: 'PhosphorFill', fontPackage: 'phosphor_flutter');
   static const arrowClockwise = IconData(0xe036, fontFamily: 'PhosphorFill', fontPackage: 'phosphor_flutter');
   static const arrowsLeftRight = IconData(0xe0a0, fontFamily: 'PhosphorFill', fontPackage: 'phosphor_flutter');

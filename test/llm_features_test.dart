@@ -241,7 +241,7 @@ void main() {
           final results = (msgs.last as ToolResultsMessage).results.single;
           final json = jsonDecode(results.content) as Map<String, dynamic>;
           expect(json['total'], 350.0);
-          expect(json['groups'][0]['key'], 'Food & Dining');
+          expect(json['groups'][0]['key'], 'Food Delivery');
           return text('You spent **${json['total_formatted']}**, all on food.');
         },
       ]);

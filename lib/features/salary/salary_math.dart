@@ -20,12 +20,14 @@ const defaultPayslipLines = [
   PayslipLineDraft(kind: PayslipLineKind.employerContribution, code: 'pf_employer', label: 'PF (employer)', amountMinor: 0),
 ];
 
+const _foodCategories = {'Food & Dining', 'Food Delivery', 'Tiffin & Mess', 'Coffee & Snacks'};
+
 /// A month's pay against what was spent in that month.
 class SalaryBreakdown {
   SalaryBreakdown(this.payslips, MonthStats stats)
     : spentMinor = stats.spent,
       personalFoodMinor = stats.categories
-          .where((c) => (c.category?.seedName ?? c.category?.name) == 'Food & Dining')
+          .where((c) => _foodCategories.contains(c.category?.seedName ?? c.category?.name))
           .fold(0, (s, c) => s + c.amount);
 
   final List<PayslipView> payslips;

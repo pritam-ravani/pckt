@@ -8,6 +8,7 @@ import '../../ingestion/email/email_sync.dart';
 import '../../ingestion/ingestion_service.dart';
 import '../../llm/llm_providers.dart';
 import '../capture/payment_capture.dart';
+import '../reminders/reminders.dart';
 import '../../providers.dart';
 import '../activity/add_transaction_sheet.dart';
 import 'share_outcome.dart';
@@ -30,6 +31,11 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     super.initState();
     // Pull new SMS (and email) whenever the app comes to the foreground.
     _lifecycle = AppLifecycleListener(onResume: _resume);
+    // Reminders read this count when they fire, while the app may be closed.
+    ref.listenManual(reviewCountProvider, (_, count) {
+      if (count.hasValue) ref.read(prefsProvider).setInt(PrefKeys.remindersReviewCount, count.value!);
+    }, fireImmediately: true);
+    ref.read(reminderChannelProvider).reschedule();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _resume();
       await ref.read(smsAlertsProvider.notifier).ensurePermission();
@@ -41,6 +47,9 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     // Opened from a payment prompt: go where that payment is waiting.
     if (await ref.read(paymentCaptureChannelProvider).takeOpenReview() && mounted) {
       context.go('/activity?filter=review');
+    }
+    if (await ref.read(paymentCaptureChannelProvider).takeOpenAdd() && mounted) {
+      await showAddTransactionSheet(context);
     }
   }
 

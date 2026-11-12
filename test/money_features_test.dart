@@ -283,7 +283,7 @@ void main() {
         occurredAt: DateTime(2026, 10, 1),
         mode: PaymentMode.upi,
         confidence: 1,
-        merchant: 'Swiggy',
+        merchant: 'Dominos',
       );
       expect(categorizer.categorize(parsed, ''), food.id);
     });

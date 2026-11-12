@@ -130,7 +130,7 @@ void main() {
     ]);
     expect(r.ignored, 1);
     final view = (await db.watchTxns().first).single;
-    expect(view.category?.name, 'Food & Dining');
+    expect(view.category?.name, 'Food Delivery');
     expect(view.account?.name, 'ICICI Bank');
   });
 }
