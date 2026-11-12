@@ -280,3 +280,169 @@ String modeLabel(PaymentMode m) => switch (m) {
   PaymentMode.cash => 'Cash',
   PaymentMode.other => 'Bank',
 };
+
+/// A coloured rounded square behind an icon, used to mark what a row or
+/// tile is about.
+class IconBubble extends StatelessWidget {
+  const IconBubble(this.icon, {super.key, required this.color, this.size = 40});
+
+  final IconData icon;
+  final Color color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: size,
+    height: size,
+    decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(size * 0.3)),
+    child: Icon(icon, color: color, size: size * 0.5),
+  );
+}
+
+/// One row in a [MenuGroup]: icon, title, optional subtitle and value.
+class MenuTile extends StatelessWidget {
+  const MenuTile({
+    super.key,
+    required this.icon,
+    required this.color,
+    required this.title,
+    this.subtitle,
+    this.value,
+    this.trailing,
+    this.onTap,
+  });
+
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String? subtitle;
+
+  /// Short text shown before the arrow, e.g. "INR" or "3 active".
+  final String? value;
+
+  /// Replaces the arrow, e.g. a switch.
+  final Widget? trailing;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) => ListTile(
+    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+    leading: IconBubble(icon, color: color, size: 38),
+    title: Text(title, style: context.text.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+    subtitle: subtitle == null
+        ? null
+        : Text(subtitle!, style: context.text.bodySmall?.copyWith(color: context.colors.onSurfaceVariant)),
+    trailing:
+        trailing ??
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (value != null)
+              Text(value!, style: context.text.bodySmall?.copyWith(color: context.colors.onSurfaceVariant)),
+            if (onTap != null) ...[
+              const SizedBox(width: 6),
+              Icon(PhosphorIconsBold.caretRight, size: 14, color: context.colors.onSurfaceVariant),
+            ],
+          ],
+        ),
+    onTap: onTap,
+  );
+}
+
+/// Rows in one card, separated by thin dividers.
+class MenuGroup extends StatelessWidget {
+  const MenuGroup({super.key, required this.children});
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) => AppCard(
+    padding: const EdgeInsets.symmetric(vertical: 4),
+    child: Column(
+      children: [
+        for (final (i, c) in children.indexed) ...[
+          if (i > 0) Divider(height: 1, indent: 62, color: context.colors.outlineVariant.withValues(alpha: 0.5)),
+          c,
+        ],
+      ],
+    ),
+  );
+}
+
+/// A square shortcut in a hub grid: icon, title and a live value.
+class FeatureTile extends StatelessWidget {
+  const FeatureTile({
+    super.key,
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.value,
+    this.onTap,
+  });
+
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String value;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) => AppCard(
+    padding: const EdgeInsets.all(14),
+    onTap: onTap,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Row(
+          children: [
+            IconBubble(icon, color: color, size: 34),
+            const Spacer(),
+            Icon(PhosphorIconsBold.caretRight, size: 14, color: context.colors.onSurfaceVariant),
+          ],
+        ),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: context.text.bodySmall?.copyWith(color: context.colors.onSurfaceVariant)),
+            const SizedBox(height: 2),
+            Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: context.text.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+}
+
+/// The large title at the top of a tab, with optional actions on the right.
+class ScreenTitle extends StatelessWidget {
+  const ScreenTitle(this.title, {super.key, this.subtitle, this.actions = const []});
+
+  final String title;
+  final String? subtitle;
+  final List<Widget> actions;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(4, 4, 0, 12),
+    child: Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: context.text.headlineSmall),
+              if (subtitle != null)
+                Text(subtitle!, style: context.text.bodySmall?.copyWith(color: context.colors.onSurfaceVariant)),
+            ],
+          ),
+        ),
+        ...actions,
+      ],
+    ),
+  );
+}

@@ -192,8 +192,24 @@ class SmsParser implements MessageParser {
         institution: sender.institution,
         isPersonToPerson: p2p,
         transferHint: _transferHint(lower, direction),
+        balanceAfterMinor: currency == home ? reportedBalance(lower, home) : null,
       ),
     );
+  }
+
+  static final _reported = RegExp(
+    r'(?:avl\.?\s*bal(?:ance)?|avail(?:able|\.)?\s*bal(?:ance)?|a/?c\.?\s*bal(?:ance)?|clear(?:ed)?\s*bal(?:ance)?|'
+    r'(?<![a-z])bal(?:ance)?)\s*(?:is|:|-|\.)?\s*(?:rs\.?|inr|₹)?\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)',
+  );
+
+  /// The balance a bank alert states after the payment ("Avl Bal Rs
+  /// 12,345.60"), if any. A card's available limit is not a balance.
+  static int? reportedBalance(String lower, String home) {
+    final m = _reported.firstMatch(lower);
+    if (m == null) return null;
+    final before = lower.substring((m.start - 12).clamp(0, m.start), m.start);
+    if (before.contains('limit') || before.contains('min')) return null;
+    return parseMinor(m.group(1)!, digits: currencyDigits(home));
   }
 
   static bool _strongVerb(String l) => RegExp(r'\b(debited|credited|spent|withdrawn)\b').hasMatch(l);

@@ -33,6 +33,75 @@ extension TxnMoney on Transaction {
   bool get isForeign => currency != Currencies.home;
 }
 
+/// An account's balance built from its opening balance and transactions,
+/// checked against the latest balance its bank reported.
+class AccountBalance {
+  const AccountBalance({
+    required this.account,
+    this.balanceMinor,
+    this.unconverted = 0,
+    this.reported,
+    this.computedAtReportMinor,
+  });
+
+  /// [newestLast] are the account's transactions, oldest first.
+  factory AccountBalance.compute(Account account, List<Transaction> newestLast) {
+    Transaction? reported;
+    for (final t in newestLast) {
+      if (t.balanceAfterMinor != null) reported = t;
+    }
+    final opening = account.openingBalanceMinor;
+    final from = account.openingBalanceAt;
+    if (opening == null || from == null) return AccountBalance(account: account, reported: reported);
+
+    var running = opening;
+    var unconverted = 0;
+    int? atReport;
+    for (final t in newestLast) {
+      if (!t.occurredAt.isAfter(from)) continue;
+      final amount = t.amountIn(account.currency);
+      if (amount == null) {
+        unconverted++;
+      } else {
+        running += t.direction == TxnDirection.credit ? amount : -amount;
+      }
+      if (identical(t, reported)) atReport = running;
+    }
+    return AccountBalance(
+      account: account,
+      balanceMinor: running,
+      unconverted: unconverted,
+      reported: reported,
+      computedAtReportMinor: atReport,
+    );
+  }
+
+  final Account account;
+
+  /// Null until an opening balance is set. Negative is an amount owed.
+  final int? balanceMinor;
+
+  /// Transactions left out because they have no amount in the account's
+  /// currency.
+  final int unconverted;
+
+  /// The latest transaction whose message stated the account balance.
+  final Transaction? reported;
+
+  /// PennyWise's balance right after [reported], for comparison.
+  final int? computedAtReportMinor;
+
+  bool get isSet => balanceMinor != null;
+
+  /// Bank's figure minus PennyWise's at the same moment: positive means
+  /// money came in that PennyWise didn't see, negative that it went out.
+  /// Null when there is nothing to compare.
+  int? get differenceMinor {
+    final bank = reported?.balanceAfterMinor;
+    return bank == null || computedAtReportMinor == null ? null : bank - computedAtReportMinor!;
+  }
+}
+
 /// A payslip with its lines and the bank credit it was matched to.
 class PayslipView {
   const PayslipView(this.payslip, this.lines, this.salaryTxn);
@@ -76,7 +145,7 @@ class AppDatabase extends _$AppDatabase {
   static const protectedCategories = {'Transfers', 'Other'};
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -115,6 +184,11 @@ class AppDatabase extends _$AppDatabase {
       }
       // v6: more everyday categories. Matched by name, so nothing is duplicated.
       if (from < 6) await _addMissingSeedCategories();
+      if (from < 7) {
+        await _addColumnIfMissing(m, accounts, accounts.openingBalanceMinor);
+        await _addColumnIfMissing(m, accounts, accounts.openingBalanceAt);
+        await _addColumnIfMissing(m, transactions, transactions.balanceAfterMinor);
+      }
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
@@ -676,6 +750,37 @@ class AppDatabase extends _$AppDatabase {
     }
     return linked;
   });
+
+  // ---------------------------------------------------------- balances
+
+  /// Every account's running balance; re-emits when accounts or
+  /// transactions change.
+  Stream<List<AccountBalance>> watchBalances() => customSelect(
+    'SELECT 1',
+    readsFrom: {accounts, transactions},
+  ).watch().asyncMap((_) => balances());
+
+  Future<List<AccountBalance>> balances() async {
+    final txns =
+        await (select(transactions)
+              ..where((t) => t.accountId.isNotNull())
+              ..orderBy([(t) => OrderingTerm.asc(t.occurredAt), (t) => OrderingTerm.asc(t.id)]))
+            .get();
+    final byAccount = <int, List<Transaction>>{};
+    for (final t in txns) {
+      (byAccount[t.accountId!] ??= []).add(t);
+    }
+    return [for (final a in await allAccounts()) AccountBalance.compute(a, byAccount[a.id] ?? const [])];
+  }
+
+  /// Sets what [accountId] held at [at] (now by default); null clears it.
+  Future<void> setOpeningBalance(int accountId, int? minor, {DateTime? at}) =>
+      (update(accounts)..where((a) => a.id.equals(accountId))).write(
+        AccountsCompanion(
+          openingBalanceMinor: Value(minor),
+          openingBalanceAt: Value(minor == null ? null : at ?? DateTime.now()),
+        ),
+      );
 
   // ---------------------------------------------------------- accounts
 

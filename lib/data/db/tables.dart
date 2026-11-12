@@ -33,6 +33,12 @@ class Accounts extends Table {
 
   /// ISO 4217 code the account is held in. Rows from before v4 are INR.
   TextColumn get currency => text().withDefault(const Constant('INR'))();
+
+  /// What the account held at [openingBalanceAt], in minor units of
+  /// [currency]; negative for an amount owed on a card. Transactions after
+  /// that moment build the running balance. Null until the user sets it.
+  IntColumn get openingBalanceMinor => integer().nullable()();
+  DateTimeColumn get openingBalanceAt => dateTime().nullable()();
 }
 
 class Categories extends Table {
@@ -85,6 +91,10 @@ class Transactions extends Table {
   /// Self-transfers between own accounts are excluded from spend.
   BoolColumn get isTransfer => boolean().withDefault(const Constant(false))();
   BoolColumn get categoryLocked => boolean().withDefault(const Constant(false))();
+
+  /// The account balance the bank reported right after this transaction
+  /// ("Avl Bal Rs 12,345"), used to check the running balance.
+  IntColumn get balanceAfterMinor => integer().nullable()();
 
   /// Set when dedup found a borderline match the user should confirm.
   IntColumn get duplicateOfId => integer().nullable()();

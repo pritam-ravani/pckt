@@ -37,6 +37,7 @@ class ParsedTxn {
     this.transferHint = false,
     this.categoryId,
     this.note,
+    this.balanceAfterMinor,
   });
 
   /// In minor units of [currency].
@@ -73,6 +74,9 @@ class ParsedTxn {
 
   /// The user's own remark from the source.
   final String? note;
+
+  /// Account balance the source reported after this payment.
+  final int? balanceAfterMinor;
 
   @override
   String toString() =>

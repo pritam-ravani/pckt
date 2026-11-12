@@ -26,7 +26,6 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
-    final accounts = ref.watch(accountsProvider).value ?? const <Account>[];
 
     return Scaffold(
       body: SafeArea(
@@ -34,78 +33,67 @@ class SettingsScreen extends ConsumerWidget {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
           children: [
-            Padding(
-              padding: const EdgeInsets.only(left: 4, bottom: 12),
-              child: Text('Settings', style: context.text.headlineSmall),
-            ),
+            const ScreenTitle('Settings', subtitle: 'Sources, alerts, preferences and your data'),
             const SectionHeader('Sources'),
+            Padding(
+              padding: const EdgeInsets.only(left: 4, bottom: 8),
+              child: Text(
+                'Where your transactions come from.',
+                style: context.text.bodySmall?.copyWith(color: context.colors.onSurfaceVariant),
+              ),
+            ),
             const _SmsCard(),
             const SizedBox(height: 10),
             const EmailSourceCard(),
             const SizedBox(height: 10),
-            const StatementImportCard(),
-            const SizedBox(height: 10),
             const PaymentAlertsCard(),
             const SizedBox(height: 10),
-            const LlmStatusCard(),
+            const StatementImportCard(),
             const SizedBox(height: 20),
-            const SectionHeader('Money'),
-            AppCard(
-              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
-              child: Column(
-                children: [
-                  const HomeCurrencyTile(),
-                  ListTile(
-                    leading: const Icon(PhosphorIconsRegular.target),
-                    title: const Text('Budgets'),
-                    subtitle: const Text('Monthly and per-category limits'),
-                    trailing: const Icon(PhosphorIconsBold.caretRight, size: 16),
-                    onTap: () => context.push('/budgets'),
-                  ),
-                  ListTile(
-                    leading: const Icon(PhosphorIconsRegular.coins),
-                    title: const Text('Salary & payslips'),
-                    subtitle: const Text('Gross, deductions and what you keep'),
-                    trailing: const Icon(PhosphorIconsBold.caretRight, size: 16),
-                    onTap: () => context.push('/salary'),
-                  ),
-                  ListTile(
-                    leading: const Icon(PhosphorIconsRegular.clock),
-                    title: const Text('Reminders'),
-                    subtitle: const Text('Nudges to review or add transactions'),
-                    trailing: const Icon(PhosphorIconsBold.caretRight, size: 16),
-                    onTap: () => context.push('/reminders'),
-                  ),
-                  SwitchListTile(
-                    secondary: const Icon(PhosphorIconsRegular.bellRinging),
-                    title: const Text('Budget alerts'),
-                    subtitle: const Text('Notify at 80% and 100%'),
+            const SectionHeader('Alerts & reminders'),
+            MenuGroup(
+              children: [
+                MenuTile(
+                  icon: PhosphorIconsFill.clock,
+                  color: Palette.categories[6],
+                  title: 'Reminders',
+                  subtitle: 'Daily nudges to review or add transactions',
+                  onTap: () => context.push('/reminders'),
+                ),
+                MenuTile(
+                  icon: PhosphorIconsFill.bellRinging,
+                  color: Palette.categories[1],
+                  title: 'Budget alerts',
+                  subtitle: 'Notify at 80% and 100% of a budget',
+                  trailing: Switch(
                     value: ref.watch(budgetAlertsProvider),
                     onChanged: (v) => ref.read(budgetAlertsProvider.notifier).setEnabled(v),
                   ),
-                  ListTile(
-                    leading: const Icon(PhosphorIconsRegular.bank),
-                    title: const Text('Accounts'),
-                    subtitle: Text(
-                      accounts.isEmpty
-                          ? 'Rename, archive or add cash'
-                          : '${accounts.length} account${accounts.length == 1 ? '' : 's'}',
-                    ),
-                    trailing: const Icon(PhosphorIconsBold.caretRight, size: 16),
-                    onTap: () => context.push('/settings/accounts'),
-                  ),
-                  ListTile(
-                    leading: const Icon(PhosphorIconsRegular.tag),
-                    title: const Text('Categories'),
-                    subtitle: const Text('Add, rename, reorder or delete'),
-                    trailing: const Icon(PhosphorIconsBold.caretRight, size: 16),
-                    onTap: () => context.push('/settings/categories'),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
             const SizedBox(height: 20),
-            const SectionHeader('Appearance'),
+            const SectionHeader('AI assistant'),
+            const LlmStatusCard(),
+            const SizedBox(height: 20),
+            const SectionHeader('Preferences'),
+            MenuGroup(
+              children: [
+                const HomeCurrencyTile(),
+                MenuTile(
+                  icon: PhosphorIconsFill.tag,
+                  color: Palette.categories[4],
+                  title: 'Categories',
+                  subtitle: 'Add, rename, reorder or delete',
+                  onTap: () => context.push('/settings/categories'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.only(left: 4, bottom: 8),
+              child: Text('Theme', style: context.text.labelLarge),
+            ),
             SegmentedButton<ThemeMode>(
               segments: const [
                 ButtonSegment(
@@ -120,10 +108,10 @@ class SettingsScreen extends ConsumerWidget {
               onSelectionChanged: (s) => ref.read(themeModeProvider.notifier).set(s.first),
             ),
             const SizedBox(height: 20),
-            const SectionHeader('Security'),
+            const SectionHeader('Security & privacy'),
             const SecurityCard(),
             const SizedBox(height: 20),
-            const SectionHeader('Data'),
+            const SectionHeader('Data & backup'),
             AppCard(
               padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
               child: Column(
@@ -165,15 +153,16 @@ class SettingsScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 20),
             const SectionHeader('About'),
-            AppCard(
-              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
-              child: ListTile(
-                leading: const Icon(PhosphorIconsBold.info),
-                title: const Text('About PennyWise'),
-                subtitle: const Text('Version, source code and licences'),
-                trailing: const Icon(PhosphorIconsBold.caretRight, size: 16),
-                onTap: () => context.push('/about'),
-              ),
+            MenuGroup(
+              children: [
+                MenuTile(
+                  icon: PhosphorIconsFill.info,
+                  color: Palette.categories[0],
+                  title: 'About PennyWise',
+                  subtitle: 'Version, source code and licences',
+                  onTap: () => context.push('/about'),
+                ),
+              ],
             ),
           ],
         ),

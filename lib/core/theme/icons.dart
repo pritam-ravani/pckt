@@ -4,6 +4,17 @@
 import 'package:flutter/widgets.dart';
 
 abstract final class PhosphorIconsFill {
+  static const bellRinging = IconData(0xe5e8, fontFamily: 'PhosphorFill', fontPackage: 'phosphor_flutter');
+  static const clock = IconData(0xe19a, fontFamily: 'PhosphorFill', fontPackage: 'phosphor_flutter');
+  static const tag = IconData(0xe478, fontFamily: 'PhosphorFill', fontPackage: 'phosphor_flutter');
+  static const coins = IconData(0xe78e, fontFamily: 'PhosphorFill', fontPackage: 'phosphor_flutter');
+  static const palette = IconData(0xe6c8, fontFamily: 'PhosphorFill', fontPackage: 'phosphor_flutter');
+  static const plusCircle = IconData(0xe3d6, fontFamily: 'PhosphorFill', fontPackage: 'phosphor_flutter');
+  static const checks = IconData(0xe53a, fontFamily: 'PhosphorFill', fontPackage: 'phosphor_flutter');
+  static const robot = IconData(0xe762, fontFamily: 'PhosphorFill', fontPackage: 'phosphor_flutter');
+  static const database = IconData(0xe1de, fontFamily: 'PhosphorFill', fontPackage: 'phosphor_flutter');
+  static const info = IconData(0xe2ce, fontFamily: 'PhosphorFill', fontPackage: 'phosphor_flutter');
+  static const downloadSimple = IconData(0xe20c, fontFamily: 'PhosphorFill', fontPackage: 'phosphor_flutter');
   static const hamburger = IconData(0xe790, fontFamily: 'PhosphorFill', fontPackage: 'phosphor_flutter');
   static const cookingPot = IconData(0xe764, fontFamily: 'PhosphorFill', fontPackage: 'phosphor_flutter');
   static const wine = IconData(0xe6b2, fontFamily: 'PhosphorFill', fontPackage: 'phosphor_flutter');
@@ -78,6 +89,7 @@ abstract final class PhosphorIconsFill {
 }
 
 abstract final class PhosphorIconsRegular {
+  static const wallet = IconData(0xe68a, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
   static const archive = IconData(0xe00c, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
   static const arrowsLeftRight = IconData(0xe0a0, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');
   static const bank = IconData(0xe0b4, fontFamily: 'PhosphorRegular', fontPackage: 'phosphor_flutter');

@@ -10,6 +10,9 @@
 > under GPL-3.0. Modifications began on 2026-11-10; see [NOTICE](NOTICE). The screenshots below were captured
 > from Pckt.
 
+
+  <img src="assets/branding/screens/mainframe.jpeg" width="250" alt="Activity: transactions read from bank SMS">
+  
 <p align="center">
   <img src="assets/branding/screens/activity.png" width="250" alt="Activity: transactions read from bank SMS">
   <img src="assets/branding/screens/categories.png" width="250" alt="Home: budget and where the money went">

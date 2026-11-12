@@ -120,9 +120,9 @@ class _HomeShellState extends ConsumerState<HomeShell> {
             label: 'Activity',
           ),
           const NavigationDestination(
-            icon: Icon(PhosphorIconsRegular.chartPie),
-            selectedIcon: Icon(PhosphorIconsFill.chartPie),
-            label: 'Insights',
+            icon: Icon(PhosphorIconsRegular.wallet),
+            selectedIcon: Icon(PhosphorIconsFill.wallet),
+            label: 'Money',
           ),
           const NavigationDestination(
             icon: Icon(PhosphorIconsRegular.sparkle),

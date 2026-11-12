@@ -95,6 +95,28 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
     requiredDuringInsert: false,
     defaultValue: const Constant('INR'),
   );
+  static const VerificationMeta _openingBalanceMinorMeta =
+      const VerificationMeta('openingBalanceMinor');
+  @override
+  late final GeneratedColumn<int> openingBalanceMinor = GeneratedColumn<int>(
+    'opening_balance_minor',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _openingBalanceAtMeta = const VerificationMeta(
+    'openingBalanceAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> openingBalanceAt =
+      GeneratedColumn<DateTime>(
+        'opening_balance_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -105,6 +127,8 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
     color,
     archived,
     currency,
+    openingBalanceMinor,
+    openingBalanceAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -164,6 +188,24 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
         currency.isAcceptableOrUnknown(data['currency']!, _currencyMeta),
       );
     }
+    if (data.containsKey('opening_balance_minor')) {
+      context.handle(
+        _openingBalanceMinorMeta,
+        openingBalanceMinor.isAcceptableOrUnknown(
+          data['opening_balance_minor']!,
+          _openingBalanceMinorMeta,
+        ),
+      );
+    }
+    if (data.containsKey('opening_balance_at')) {
+      context.handle(
+        _openingBalanceAtMeta,
+        openingBalanceAt.isAcceptableOrUnknown(
+          data['opening_balance_at']!,
+          _openingBalanceAtMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -207,6 +249,14 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
         DriftSqlType.string,
         data['${effectivePrefix}currency'],
       )!,
+      openingBalanceMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}opening_balance_minor'],
+      ),
+      openingBalanceAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}opening_balance_at'],
+      ),
     );
   }
 
@@ -232,6 +282,12 @@ class Account extends DataClass implements Insertable<Account> {
 
   /// ISO 4217 code the account is held in. Rows from before v4 are INR.
   final String currency;
+
+  /// What the account held at [openingBalanceAt], in minor units of
+  /// [currency]; negative for an amount owed on a card. Transactions after
+  /// that moment build the running balance. Null until the user sets it.
+  final int? openingBalanceMinor;
+  final DateTime? openingBalanceAt;
   const Account({
     required this.id,
     required this.name,
@@ -241,6 +297,8 @@ class Account extends DataClass implements Insertable<Account> {
     required this.color,
     required this.archived,
     required this.currency,
+    this.openingBalanceMinor,
+    this.openingBalanceAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -259,6 +317,12 @@ class Account extends DataClass implements Insertable<Account> {
     map['color'] = Variable<int>(color);
     map['archived'] = Variable<bool>(archived);
     map['currency'] = Variable<String>(currency);
+    if (!nullToAbsent || openingBalanceMinor != null) {
+      map['opening_balance_minor'] = Variable<int>(openingBalanceMinor);
+    }
+    if (!nullToAbsent || openingBalanceAt != null) {
+      map['opening_balance_at'] = Variable<DateTime>(openingBalanceAt);
+    }
     return map;
   }
 
@@ -276,6 +340,12 @@ class Account extends DataClass implements Insertable<Account> {
       color: Value(color),
       archived: Value(archived),
       currency: Value(currency),
+      openingBalanceMinor: openingBalanceMinor == null && nullToAbsent
+          ? const Value.absent()
+          : Value(openingBalanceMinor),
+      openingBalanceAt: openingBalanceAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(openingBalanceAt),
     );
   }
 
@@ -295,6 +365,12 @@ class Account extends DataClass implements Insertable<Account> {
       color: serializer.fromJson<int>(json['color']),
       archived: serializer.fromJson<bool>(json['archived']),
       currency: serializer.fromJson<String>(json['currency']),
+      openingBalanceMinor: serializer.fromJson<int?>(
+        json['openingBalanceMinor'],
+      ),
+      openingBalanceAt: serializer.fromJson<DateTime?>(
+        json['openingBalanceAt'],
+      ),
     );
   }
   @override
@@ -311,6 +387,8 @@ class Account extends DataClass implements Insertable<Account> {
       'color': serializer.toJson<int>(color),
       'archived': serializer.toJson<bool>(archived),
       'currency': serializer.toJson<String>(currency),
+      'openingBalanceMinor': serializer.toJson<int?>(openingBalanceMinor),
+      'openingBalanceAt': serializer.toJson<DateTime?>(openingBalanceAt),
     };
   }
 
@@ -323,6 +401,8 @@ class Account extends DataClass implements Insertable<Account> {
     int? color,
     bool? archived,
     String? currency,
+    Value<int?> openingBalanceMinor = const Value.absent(),
+    Value<DateTime?> openingBalanceAt = const Value.absent(),
   }) => Account(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -332,6 +412,12 @@ class Account extends DataClass implements Insertable<Account> {
     color: color ?? this.color,
     archived: archived ?? this.archived,
     currency: currency ?? this.currency,
+    openingBalanceMinor: openingBalanceMinor.present
+        ? openingBalanceMinor.value
+        : this.openingBalanceMinor,
+    openingBalanceAt: openingBalanceAt.present
+        ? openingBalanceAt.value
+        : this.openingBalanceAt,
   );
   Account copyWithCompanion(AccountsCompanion data) {
     return Account(
@@ -345,6 +431,12 @@ class Account extends DataClass implements Insertable<Account> {
       color: data.color.present ? data.color.value : this.color,
       archived: data.archived.present ? data.archived.value : this.archived,
       currency: data.currency.present ? data.currency.value : this.currency,
+      openingBalanceMinor: data.openingBalanceMinor.present
+          ? data.openingBalanceMinor.value
+          : this.openingBalanceMinor,
+      openingBalanceAt: data.openingBalanceAt.present
+          ? data.openingBalanceAt.value
+          : this.openingBalanceAt,
     );
   }
 
@@ -358,7 +450,9 @@ class Account extends DataClass implements Insertable<Account> {
           ..write('last4: $last4, ')
           ..write('color: $color, ')
           ..write('archived: $archived, ')
-          ..write('currency: $currency')
+          ..write('currency: $currency, ')
+          ..write('openingBalanceMinor: $openingBalanceMinor, ')
+          ..write('openingBalanceAt: $openingBalanceAt')
           ..write(')'))
         .toString();
   }
@@ -373,6 +467,8 @@ class Account extends DataClass implements Insertable<Account> {
     color,
     archived,
     currency,
+    openingBalanceMinor,
+    openingBalanceAt,
   );
   @override
   bool operator ==(Object other) =>
@@ -385,7 +481,9 @@ class Account extends DataClass implements Insertable<Account> {
           other.last4 == this.last4 &&
           other.color == this.color &&
           other.archived == this.archived &&
-          other.currency == this.currency);
+          other.currency == this.currency &&
+          other.openingBalanceMinor == this.openingBalanceMinor &&
+          other.openingBalanceAt == this.openingBalanceAt);
 }
 
 class AccountsCompanion extends UpdateCompanion<Account> {
@@ -397,6 +495,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
   final Value<int> color;
   final Value<bool> archived;
   final Value<String> currency;
+  final Value<int?> openingBalanceMinor;
+  final Value<DateTime?> openingBalanceAt;
   const AccountsCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
@@ -406,6 +506,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     this.color = const Value.absent(),
     this.archived = const Value.absent(),
     this.currency = const Value.absent(),
+    this.openingBalanceMinor = const Value.absent(),
+    this.openingBalanceAt = const Value.absent(),
   });
   AccountsCompanion.insert({
     this.id = const Value.absent(),
@@ -416,6 +518,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     required int color,
     this.archived = const Value.absent(),
     this.currency = const Value.absent(),
+    this.openingBalanceMinor = const Value.absent(),
+    this.openingBalanceAt = const Value.absent(),
   }) : name = Value(name),
        kind = Value(kind),
        color = Value(color);
@@ -428,6 +532,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     Expression<int>? color,
     Expression<bool>? archived,
     Expression<String>? currency,
+    Expression<int>? openingBalanceMinor,
+    Expression<DateTime>? openingBalanceAt,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -438,6 +544,9 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       if (color != null) 'color': color,
       if (archived != null) 'archived': archived,
       if (currency != null) 'currency': currency,
+      if (openingBalanceMinor != null)
+        'opening_balance_minor': openingBalanceMinor,
+      if (openingBalanceAt != null) 'opening_balance_at': openingBalanceAt,
     });
   }
 
@@ -450,6 +559,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     Value<int>? color,
     Value<bool>? archived,
     Value<String>? currency,
+    Value<int?>? openingBalanceMinor,
+    Value<DateTime?>? openingBalanceAt,
   }) {
     return AccountsCompanion(
       id: id ?? this.id,
@@ -460,6 +571,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       color: color ?? this.color,
       archived: archived ?? this.archived,
       currency: currency ?? this.currency,
+      openingBalanceMinor: openingBalanceMinor ?? this.openingBalanceMinor,
+      openingBalanceAt: openingBalanceAt ?? this.openingBalanceAt,
     );
   }
 
@@ -492,6 +605,12 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     if (currency.present) {
       map['currency'] = Variable<String>(currency.value);
     }
+    if (openingBalanceMinor.present) {
+      map['opening_balance_minor'] = Variable<int>(openingBalanceMinor.value);
+    }
+    if (openingBalanceAt.present) {
+      map['opening_balance_at'] = Variable<DateTime>(openingBalanceAt.value);
+    }
     return map;
   }
 
@@ -505,7 +624,9 @@ class AccountsCompanion extends UpdateCompanion<Account> {
           ..write('last4: $last4, ')
           ..write('color: $color, ')
           ..write('archived: $archived, ')
-          ..write('currency: $currency')
+          ..write('currency: $currency, ')
+          ..write('openingBalanceMinor: $openingBalanceMinor, ')
+          ..write('openingBalanceAt: $openingBalanceAt')
           ..write(')'))
         .toString();
   }
@@ -1171,6 +1292,17 @@ class $TransactionsTable extends Transactions
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _balanceAfterMinorMeta = const VerificationMeta(
+    'balanceAfterMinor',
+  );
+  @override
+  late final GeneratedColumn<int> balanceAfterMinor = GeneratedColumn<int>(
+    'balance_after_minor',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _duplicateOfIdMeta = const VerificationMeta(
     'duplicateOfId',
   );
@@ -1214,6 +1346,7 @@ class $TransactionsTable extends Transactions
     status,
     isTransfer,
     categoryLocked,
+    balanceAfterMinor,
     duplicateOfId,
     createdAt,
   ];
@@ -1338,6 +1471,15 @@ class $TransactionsTable extends Transactions
         ),
       );
     }
+    if (data.containsKey('balance_after_minor')) {
+      context.handle(
+        _balanceAfterMinorMeta,
+        balanceAfterMinor.isAcceptableOrUnknown(
+          data['balance_after_minor']!,
+          _balanceAfterMinorMeta,
+        ),
+      );
+    }
     if (data.containsKey('duplicate_of_id')) {
       context.handle(
         _duplicateOfIdMeta,
@@ -1440,6 +1582,10 @@ class $TransactionsTable extends Transactions
         DriftSqlType.bool,
         data['${effectivePrefix}category_locked'],
       )!,
+      balanceAfterMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}balance_after_minor'],
+      ),
       duplicateOfId: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}duplicate_of_id'],
@@ -1500,6 +1646,10 @@ class Transaction extends DataClass implements Insertable<Transaction> {
   final bool isTransfer;
   final bool categoryLocked;
 
+  /// The account balance the bank reported right after this transaction
+  /// ("Avl Bal Rs 12,345"), used to check the running balance.
+  final int? balanceAfterMinor;
+
   /// Set when dedup found a borderline match the user should confirm.
   final int? duplicateOfId;
   final DateTime createdAt;
@@ -1522,6 +1672,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     required this.status,
     required this.isTransfer,
     required this.categoryLocked,
+    this.balanceAfterMinor,
     this.duplicateOfId,
     required this.createdAt,
   });
@@ -1576,6 +1727,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     }
     map['is_transfer'] = Variable<bool>(isTransfer);
     map['category_locked'] = Variable<bool>(categoryLocked);
+    if (!nullToAbsent || balanceAfterMinor != null) {
+      map['balance_after_minor'] = Variable<int>(balanceAfterMinor);
+    }
     if (!nullToAbsent || duplicateOfId != null) {
       map['duplicate_of_id'] = Variable<int>(duplicateOfId);
     }
@@ -1619,6 +1773,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       status: Value(status),
       isTransfer: Value(isTransfer),
       categoryLocked: Value(categoryLocked),
+      balanceAfterMinor: balanceAfterMinor == null && nullToAbsent
+          ? const Value.absent()
+          : Value(balanceAfterMinor),
       duplicateOfId: duplicateOfId == null && nullToAbsent
           ? const Value.absent()
           : Value(duplicateOfId),
@@ -1658,6 +1815,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       ),
       isTransfer: serializer.fromJson<bool>(json['isTransfer']),
       categoryLocked: serializer.fromJson<bool>(json['categoryLocked']),
+      balanceAfterMinor: serializer.fromJson<int?>(json['balanceAfterMinor']),
       duplicateOfId: serializer.fromJson<int?>(json['duplicateOfId']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
@@ -1690,6 +1848,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       ),
       'isTransfer': serializer.toJson<bool>(isTransfer),
       'categoryLocked': serializer.toJson<bool>(categoryLocked),
+      'balanceAfterMinor': serializer.toJson<int?>(balanceAfterMinor),
       'duplicateOfId': serializer.toJson<int?>(duplicateOfId),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
@@ -1714,6 +1873,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     TxnStatus? status,
     bool? isTransfer,
     bool? categoryLocked,
+    Value<int?> balanceAfterMinor = const Value.absent(),
     Value<int?> duplicateOfId = const Value.absent(),
     DateTime? createdAt,
   }) => Transaction(
@@ -1739,6 +1899,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     status: status ?? this.status,
     isTransfer: isTransfer ?? this.isTransfer,
     categoryLocked: categoryLocked ?? this.categoryLocked,
+    balanceAfterMinor: balanceAfterMinor.present
+        ? balanceAfterMinor.value
+        : this.balanceAfterMinor,
     duplicateOfId: duplicateOfId.present
         ? duplicateOfId.value
         : this.duplicateOfId,
@@ -1782,6 +1945,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       categoryLocked: data.categoryLocked.present
           ? data.categoryLocked.value
           : this.categoryLocked,
+      balanceAfterMinor: data.balanceAfterMinor.present
+          ? data.balanceAfterMinor.value
+          : this.balanceAfterMinor,
       duplicateOfId: data.duplicateOfId.present
           ? data.duplicateOfId.value
           : this.duplicateOfId,
@@ -1810,6 +1976,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           ..write('status: $status, ')
           ..write('isTransfer: $isTransfer, ')
           ..write('categoryLocked: $categoryLocked, ')
+          ..write('balanceAfterMinor: $balanceAfterMinor, ')
           ..write('duplicateOfId: $duplicateOfId, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
@@ -1817,7 +1984,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     id,
     amountMinor,
     currency,
@@ -1836,9 +2003,10 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     status,
     isTransfer,
     categoryLocked,
+    balanceAfterMinor,
     duplicateOfId,
     createdAt,
-  );
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1861,6 +2029,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           other.status == this.status &&
           other.isTransfer == this.isTransfer &&
           other.categoryLocked == this.categoryLocked &&
+          other.balanceAfterMinor == this.balanceAfterMinor &&
           other.duplicateOfId == this.duplicateOfId &&
           other.createdAt == this.createdAt);
 }
@@ -1884,6 +2053,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
   final Value<TxnStatus> status;
   final Value<bool> isTransfer;
   final Value<bool> categoryLocked;
+  final Value<int?> balanceAfterMinor;
   final Value<int?> duplicateOfId;
   final Value<DateTime> createdAt;
   const TransactionsCompanion({
@@ -1905,6 +2075,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.status = const Value.absent(),
     this.isTransfer = const Value.absent(),
     this.categoryLocked = const Value.absent(),
+    this.balanceAfterMinor = const Value.absent(),
     this.duplicateOfId = const Value.absent(),
     this.createdAt = const Value.absent(),
   });
@@ -1927,6 +2098,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     required TxnStatus status,
     this.isTransfer = const Value.absent(),
     this.categoryLocked = const Value.absent(),
+    this.balanceAfterMinor = const Value.absent(),
     this.duplicateOfId = const Value.absent(),
     this.createdAt = const Value.absent(),
   }) : amountMinor = Value(amountMinor),
@@ -1953,6 +2125,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     Expression<int>? status,
     Expression<bool>? isTransfer,
     Expression<bool>? categoryLocked,
+    Expression<int>? balanceAfterMinor,
     Expression<int>? duplicateOfId,
     Expression<DateTime>? createdAt,
   }) {
@@ -1975,6 +2148,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       if (status != null) 'status': status,
       if (isTransfer != null) 'is_transfer': isTransfer,
       if (categoryLocked != null) 'category_locked': categoryLocked,
+      if (balanceAfterMinor != null) 'balance_after_minor': balanceAfterMinor,
       if (duplicateOfId != null) 'duplicate_of_id': duplicateOfId,
       if (createdAt != null) 'created_at': createdAt,
     });
@@ -1999,6 +2173,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     Value<TxnStatus>? status,
     Value<bool>? isTransfer,
     Value<bool>? categoryLocked,
+    Value<int?>? balanceAfterMinor,
     Value<int?>? duplicateOfId,
     Value<DateTime>? createdAt,
   }) {
@@ -2021,6 +2196,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       status: status ?? this.status,
       isTransfer: isTransfer ?? this.isTransfer,
       categoryLocked: categoryLocked ?? this.categoryLocked,
+      balanceAfterMinor: balanceAfterMinor ?? this.balanceAfterMinor,
       duplicateOfId: duplicateOfId ?? this.duplicateOfId,
       createdAt: createdAt ?? this.createdAt,
     );
@@ -2089,6 +2265,9 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     if (categoryLocked.present) {
       map['category_locked'] = Variable<bool>(categoryLocked.value);
     }
+    if (balanceAfterMinor.present) {
+      map['balance_after_minor'] = Variable<int>(balanceAfterMinor.value);
+    }
     if (duplicateOfId.present) {
       map['duplicate_of_id'] = Variable<int>(duplicateOfId.value);
     }
@@ -2119,6 +2298,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
           ..write('status: $status, ')
           ..write('isTransfer: $isTransfer, ')
           ..write('categoryLocked: $categoryLocked, ')
+          ..write('balanceAfterMinor: $balanceAfterMinor, ')
           ..write('duplicateOfId: $duplicateOfId, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
@@ -4517,6 +4697,8 @@ typedef $$AccountsTableCreateCompanionBuilder = AccountsCompanion Function({
   required int color,
   Value<bool> archived,
   Value<String> currency,
+  Value<int?> openingBalanceMinor,
+  Value<DateTime?> openingBalanceAt,
 });
 typedef $$AccountsTableUpdateCompanionBuilder = AccountsCompanion Function({
   Value<int> id,
@@ -4527,6 +4709,8 @@ typedef $$AccountsTableUpdateCompanionBuilder = AccountsCompanion Function({
   Value<int> color,
   Value<bool> archived,
   Value<String> currency,
+  Value<int?> openingBalanceMinor,
+  Value<DateTime?> openingBalanceAt,
 });
 
 final class $$AccountsTableReferences
@@ -4599,6 +4783,16 @@ class $$AccountsTableFilterComposer
 
   ColumnFilters<String> get currency => $composableBuilder(
     column: $table.currency,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get openingBalanceMinor => $composableBuilder(
+    column: $table.openingBalanceMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get openingBalanceAt => $composableBuilder(
+    column: $table.openingBalanceAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4676,6 +4870,16 @@ class $$AccountsTableOrderingComposer
     column: $table.currency,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get openingBalanceMinor => $composableBuilder(
+    column: $table.openingBalanceMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get openingBalanceAt => $composableBuilder(
+    column: $table.openingBalanceAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AccountsTableAnnotationComposer
@@ -4712,6 +4916,16 @@ class $$AccountsTableAnnotationComposer
 
   GeneratedColumn<String> get currency =>
       $composableBuilder(column: $table.currency, builder: (column) => column);
+
+  GeneratedColumn<int> get openingBalanceMinor => $composableBuilder(
+    column: $table.openingBalanceMinor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get openingBalanceAt => $composableBuilder(
+    column: $table.openingBalanceAt,
+    builder: (column) => column,
+  );
 
   Expression<T> transactionsRefs<T extends Object>(
     Expression<T> Function($$TransactionsTableAnnotationComposer a) f,
@@ -4775,6 +4989,8 @@ class $$AccountsTableTableManager
                 Value<int> color = const Value.absent(),
                 Value<bool> archived = const Value.absent(),
                 Value<String> currency = const Value.absent(),
+                Value<int?> openingBalanceMinor = const Value.absent(),
+                Value<DateTime?> openingBalanceAt = const Value.absent(),
               }) => AccountsCompanion(
                 id: id,
                 name: name,
@@ -4784,6 +5000,8 @@ class $$AccountsTableTableManager
                 color: color,
                 archived: archived,
                 currency: currency,
+                openingBalanceMinor: openingBalanceMinor,
+                openingBalanceAt: openingBalanceAt,
               ),
           createCompanionCallback:
               ({
@@ -4795,6 +5013,8 @@ class $$AccountsTableTableManager
                 required int color,
                 Value<bool> archived = const Value.absent(),
                 Value<String> currency = const Value.absent(),
+                Value<int?> openingBalanceMinor = const Value.absent(),
+                Value<DateTime?> openingBalanceAt = const Value.absent(),
               }) => AccountsCompanion.insert(
                 id: id,
                 name: name,
@@ -4804,6 +5024,8 @@ class $$AccountsTableTableManager
                 color: color,
                 archived: archived,
                 currency: currency,
+                openingBalanceMinor: openingBalanceMinor,
+                openingBalanceAt: openingBalanceAt,
               ),
           withReferenceMapper: (p0) => p0
               .map(
@@ -5409,6 +5631,7 @@ typedef $$TransactionsTableCreateCompanionBuilder =
       required TxnStatus status,
       Value<bool> isTransfer,
       Value<bool> categoryLocked,
+      Value<int?> balanceAfterMinor,
       Value<int?> duplicateOfId,
       Value<DateTime> createdAt,
     });
@@ -5432,6 +5655,7 @@ typedef $$TransactionsTableUpdateCompanionBuilder =
       Value<TxnStatus> status,
       Value<bool> isTransfer,
       Value<bool> categoryLocked,
+      Value<int?> balanceAfterMinor,
       Value<int?> duplicateOfId,
       Value<DateTime> createdAt,
     });
@@ -5601,6 +5825,11 @@ class $$TransactionsTableFilterComposer
 
   ColumnFilters<bool> get categoryLocked => $composableBuilder(
     column: $table.categoryLocked,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get balanceAfterMinor => $composableBuilder(
+    column: $table.balanceAfterMinor,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5800,6 +6029,11 @@ class $$TransactionsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get balanceAfterMinor => $composableBuilder(
+    column: $table.balanceAfterMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get duplicateOfId => $composableBuilder(
     column: $table.duplicateOfId,
     builder: (column) => ColumnOrderings(column),
@@ -5927,6 +6161,11 @@ class $$TransactionsTableAnnotationComposer
 
   GeneratedColumn<bool> get categoryLocked => $composableBuilder(
     column: $table.categoryLocked,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get balanceAfterMinor => $composableBuilder(
+    column: $table.balanceAfterMinor,
     builder: (column) => column,
   );
 
@@ -6086,6 +6325,7 @@ class $$TransactionsTableTableManager
                 Value<TxnStatus> status = const Value.absent(),
                 Value<bool> isTransfer = const Value.absent(),
                 Value<bool> categoryLocked = const Value.absent(),
+                Value<int?> balanceAfterMinor = const Value.absent(),
                 Value<int?> duplicateOfId = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
               }) => TransactionsCompanion(
@@ -6107,6 +6347,7 @@ class $$TransactionsTableTableManager
                 status: status,
                 isTransfer: isTransfer,
                 categoryLocked: categoryLocked,
+                balanceAfterMinor: balanceAfterMinor,
                 duplicateOfId: duplicateOfId,
                 createdAt: createdAt,
               ),
@@ -6130,6 +6371,7 @@ class $$TransactionsTableTableManager
                 required TxnStatus status,
                 Value<bool> isTransfer = const Value.absent(),
                 Value<bool> categoryLocked = const Value.absent(),
+                Value<int?> balanceAfterMinor = const Value.absent(),
                 Value<int?> duplicateOfId = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
               }) => TransactionsCompanion.insert(
@@ -6151,6 +6393,7 @@ class $$TransactionsTableTableManager
                 status: status,
                 isTransfer: isTransfer,
                 categoryLocked: categoryLocked,
+                balanceAfterMinor: balanceAfterMinor,
                 duplicateOfId: duplicateOfId,
                 createdAt: createdAt,
               ),

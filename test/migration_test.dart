@@ -43,4 +43,17 @@ void main() {
     expect(names, containsAll(['Food Delivery', 'Tiffin & Mess', 'Cab & Auto', 'Family Support', 'Bonus']));
     expect(names.toSet(), hasLength(names.length));
   });
+
+  test('upgrading from v6 adds balance tracking and keeps accounts', () async {
+    final schema = await verifier.schemaAt(6);
+    schema.rawDatabase.execute(
+      "INSERT INTO accounts (name, kind, color, archived, currency) VALUES ('Axis', 0, 0, 0, 'INR')",
+    );
+    final db = AppDatabase(schema.newConnection());
+    addTearDown(db.close);
+    await verifier.migrateAndValidate(db, db.schemaVersion);
+    final a = (await db.allAccounts()).single;
+    expect(a.name, 'Axis');
+    expect(a.openingBalanceMinor, equals(null));
+  });
 }

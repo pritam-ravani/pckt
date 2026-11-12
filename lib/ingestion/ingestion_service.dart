@@ -280,6 +280,7 @@ class IngestionService {
             counterparty: Value(txn.counterparty),
             categoryId: Value(txn.categoryId ?? categorizer.categorize(txn, body)),
             note: Value(txn.note),
+            balanceAfterMinor: Value(txn.balanceAfterMinor),
             accountId: Value(account?.id),
             accountHint: Value(txn.accountHint),
             mode: txn.mode,
@@ -356,6 +357,9 @@ class IngestionService {
         convertedCurrency: conversion == null ? const Value.absent() : Value(conversion.$2),
         merchant: merchant != existing.merchant ? Value(merchant) : const Value.absent(),
         note: existing.note == null && t.note != null ? Value(t.note) : const Value.absent(),
+        balanceAfterMinor: existing.balanceAfterMinor == null && t.balanceAfterMinor != null
+            ? Value(t.balanceAfterMinor)
+            : const Value.absent(),
         categoryId: sourceCategory != null
             ? Value(sourceCategory)
             : recategorize
