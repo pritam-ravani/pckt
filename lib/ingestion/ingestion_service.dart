@@ -108,6 +108,56 @@ class IngestionService {
     }
   }
 
+  /// For sources that arrive already structured, such as statement files:
+  /// skips anything seen before, then runs dedup → categorise → store.
+  Future<IngestReport> ingestParsed(List<(RawInput, ParsedTxn)> items) async {
+    final report = IngestReport();
+    if (items.isEmpty) return report;
+    final known = <SourceKind, Set<String>>{};
+    for (final s in items.map((i) => i.$1.source).toSet()) {
+      known[s] = await db.knownExternalIds(s);
+    }
+    final fresh = items.where((i) => !known[i.$1.source]!.contains(i.$1.externalId)).toList()
+      ..sort((a, b) => a.$1.receivedAt.compareTo(b.$1.receivedAt));
+    report.seen = fresh.length;
+    if (fresh.isEmpty) return report;
+
+    final categorizer = Categorizer(await db.allCategories(), await db.allMerchantRules());
+    final accounts = await db.allAccounts();
+    for (var i = 0; i < fresh.length; i += 200) {
+      final chunk = fresh.sublist(i, (i + 200).clamp(0, fresh.length));
+      await db.transaction(() async {
+        for (final (input, txn) in chunk) {
+          await _store(
+            txn,
+            source: input.source,
+            sender: input.sender,
+            body: input.body,
+            categorizer: categorizer,
+            accounts: accounts,
+            report: report,
+            writeRaw: (status, {txnId, score}) => db
+                .into(db.rawMessages)
+                .insert(
+                  RawMessagesCompanion.insert(
+                    source: input.source,
+                    externalId: input.externalId,
+                    sender: input.sender,
+                    body: input.body,
+                    receivedAt: input.receivedAt,
+                    parseStatus: status,
+                    transactionId: Value(txnId),
+                    mergeScore: Value(score),
+                  ),
+                  mode: InsertMode.insertOrIgnore,
+                ),
+          );
+        }
+      });
+    }
+    return report;
+  }
+
   /// Re-reads stored messages that an older parser skipped for want of an
   /// amount or a direction ("USD 12.50 spent", "card was used for Rs.640"),
   /// so they appear without a destructive full re-import. Rows that still
@@ -228,7 +278,9 @@ class IngestionService {
             occurredAt: txn.occurredAt,
             merchant: Value(txn.merchant),
             counterparty: Value(txn.counterparty),
-            categoryId: Value(categorizer.categorize(txn, body)),
+            categoryId: Value(txn.categoryId ?? categorizer.categorize(txn, body)),
+            note: Value(txn.note),
+            balanceAfterMinor: Value(txn.balanceAfterMinor),
             accountId: Value(account?.id),
             accountHint: Value(txn.accountHint),
             mode: txn.mode,
@@ -288,6 +340,7 @@ class IngestionService {
         EmailSenders.isMerchant(sender);
     final merchant = betterMerchant || existing.merchant == null ? t.merchant : existing.merchant;
     final recategorize = betterMerchant && !existing.categoryLocked && !existing.isTransfer;
+    final sourceCategory = !existing.categoryLocked && !existing.isTransfer ? t.categoryId : null;
     // A rupee-only alert matched a foreign spend (or the other way round):
     // the second source tells us what it cost at home.
     final conversion = existing.convertedMinor != null
@@ -303,7 +356,13 @@ class IngestionService {
         convertedMinor: conversion == null ? const Value.absent() : Value(conversion.$1),
         convertedCurrency: conversion == null ? const Value.absent() : Value(conversion.$2),
         merchant: merchant != existing.merchant ? Value(merchant) : const Value.absent(),
-        categoryId: recategorize
+        note: existing.note == null && t.note != null ? Value(t.note) : const Value.absent(),
+        balanceAfterMinor: existing.balanceAfterMinor == null && t.balanceAfterMinor != null
+            ? Value(t.balanceAfterMinor)
+            : const Value.absent(),
+        categoryId: sourceCategory != null
+            ? Value(sourceCategory)
+            : recategorize
             ? Value(
                 categorizer.categorize(
                       ParsedTxn(

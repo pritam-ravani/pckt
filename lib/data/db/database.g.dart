@@ -95,6 +95,28 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
     requiredDuringInsert: false,
     defaultValue: const Constant('INR'),
   );
+  static const VerificationMeta _openingBalanceMinorMeta =
+      const VerificationMeta('openingBalanceMinor');
+  @override
+  late final GeneratedColumn<int> openingBalanceMinor = GeneratedColumn<int>(
+    'opening_balance_minor',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _openingBalanceAtMeta = const VerificationMeta(
+    'openingBalanceAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> openingBalanceAt =
+      GeneratedColumn<DateTime>(
+        'opening_balance_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -105,6 +127,8 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
     color,
     archived,
     currency,
+    openingBalanceMinor,
+    openingBalanceAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -164,6 +188,24 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
         currency.isAcceptableOrUnknown(data['currency']!, _currencyMeta),
       );
     }
+    if (data.containsKey('opening_balance_minor')) {
+      context.handle(
+        _openingBalanceMinorMeta,
+        openingBalanceMinor.isAcceptableOrUnknown(
+          data['opening_balance_minor']!,
+          _openingBalanceMinorMeta,
+        ),
+      );
+    }
+    if (data.containsKey('opening_balance_at')) {
+      context.handle(
+        _openingBalanceAtMeta,
+        openingBalanceAt.isAcceptableOrUnknown(
+          data['opening_balance_at']!,
+          _openingBalanceAtMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -207,6 +249,14 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
         DriftSqlType.string,
         data['${effectivePrefix}currency'],
       )!,
+      openingBalanceMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}opening_balance_minor'],
+      ),
+      openingBalanceAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}opening_balance_at'],
+      ),
     );
   }
 
@@ -232,6 +282,12 @@ class Account extends DataClass implements Insertable<Account> {
 
   /// ISO 4217 code the account is held in. Rows from before v4 are INR.
   final String currency;
+
+  /// What the account held at [openingBalanceAt], in minor units of
+  /// [currency]; negative for an amount owed on a card. Transactions after
+  /// that moment build the running balance. Null until the user sets it.
+  final int? openingBalanceMinor;
+  final DateTime? openingBalanceAt;
   const Account({
     required this.id,
     required this.name,
@@ -241,6 +297,8 @@ class Account extends DataClass implements Insertable<Account> {
     required this.color,
     required this.archived,
     required this.currency,
+    this.openingBalanceMinor,
+    this.openingBalanceAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -259,6 +317,12 @@ class Account extends DataClass implements Insertable<Account> {
     map['color'] = Variable<int>(color);
     map['archived'] = Variable<bool>(archived);
     map['currency'] = Variable<String>(currency);
+    if (!nullToAbsent || openingBalanceMinor != null) {
+      map['opening_balance_minor'] = Variable<int>(openingBalanceMinor);
+    }
+    if (!nullToAbsent || openingBalanceAt != null) {
+      map['opening_balance_at'] = Variable<DateTime>(openingBalanceAt);
+    }
     return map;
   }
 
@@ -276,6 +340,12 @@ class Account extends DataClass implements Insertable<Account> {
       color: Value(color),
       archived: Value(archived),
       currency: Value(currency),
+      openingBalanceMinor: openingBalanceMinor == null && nullToAbsent
+          ? const Value.absent()
+          : Value(openingBalanceMinor),
+      openingBalanceAt: openingBalanceAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(openingBalanceAt),
     );
   }
 
@@ -295,6 +365,12 @@ class Account extends DataClass implements Insertable<Account> {
       color: serializer.fromJson<int>(json['color']),
       archived: serializer.fromJson<bool>(json['archived']),
       currency: serializer.fromJson<String>(json['currency']),
+      openingBalanceMinor: serializer.fromJson<int?>(
+        json['openingBalanceMinor'],
+      ),
+      openingBalanceAt: serializer.fromJson<DateTime?>(
+        json['openingBalanceAt'],
+      ),
     );
   }
   @override
@@ -311,6 +387,8 @@ class Account extends DataClass implements Insertable<Account> {
       'color': serializer.toJson<int>(color),
       'archived': serializer.toJson<bool>(archived),
       'currency': serializer.toJson<String>(currency),
+      'openingBalanceMinor': serializer.toJson<int?>(openingBalanceMinor),
+      'openingBalanceAt': serializer.toJson<DateTime?>(openingBalanceAt),
     };
   }
 
@@ -323,6 +401,8 @@ class Account extends DataClass implements Insertable<Account> {
     int? color,
     bool? archived,
     String? currency,
+    Value<int?> openingBalanceMinor = const Value.absent(),
+    Value<DateTime?> openingBalanceAt = const Value.absent(),
   }) => Account(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -332,6 +412,12 @@ class Account extends DataClass implements Insertable<Account> {
     color: color ?? this.color,
     archived: archived ?? this.archived,
     currency: currency ?? this.currency,
+    openingBalanceMinor: openingBalanceMinor.present
+        ? openingBalanceMinor.value
+        : this.openingBalanceMinor,
+    openingBalanceAt: openingBalanceAt.present
+        ? openingBalanceAt.value
+        : this.openingBalanceAt,
   );
   Account copyWithCompanion(AccountsCompanion data) {
     return Account(
@@ -345,6 +431,12 @@ class Account extends DataClass implements Insertable<Account> {
       color: data.color.present ? data.color.value : this.color,
       archived: data.archived.present ? data.archived.value : this.archived,
       currency: data.currency.present ? data.currency.value : this.currency,
+      openingBalanceMinor: data.openingBalanceMinor.present
+          ? data.openingBalanceMinor.value
+          : this.openingBalanceMinor,
+      openingBalanceAt: data.openingBalanceAt.present
+          ? data.openingBalanceAt.value
+          : this.openingBalanceAt,
     );
   }
 
@@ -358,7 +450,9 @@ class Account extends DataClass implements Insertable<Account> {
           ..write('last4: $last4, ')
           ..write('color: $color, ')
           ..write('archived: $archived, ')
-          ..write('currency: $currency')
+          ..write('currency: $currency, ')
+          ..write('openingBalanceMinor: $openingBalanceMinor, ')
+          ..write('openingBalanceAt: $openingBalanceAt')
           ..write(')'))
         .toString();
   }
@@ -373,6 +467,8 @@ class Account extends DataClass implements Insertable<Account> {
     color,
     archived,
     currency,
+    openingBalanceMinor,
+    openingBalanceAt,
   );
   @override
   bool operator ==(Object other) =>
@@ -385,7 +481,9 @@ class Account extends DataClass implements Insertable<Account> {
           other.last4 == this.last4 &&
           other.color == this.color &&
           other.archived == this.archived &&
-          other.currency == this.currency);
+          other.currency == this.currency &&
+          other.openingBalanceMinor == this.openingBalanceMinor &&
+          other.openingBalanceAt == this.openingBalanceAt);
 }
 
 class AccountsCompanion extends UpdateCompanion<Account> {
@@ -397,6 +495,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
   final Value<int> color;
   final Value<bool> archived;
   final Value<String> currency;
+  final Value<int?> openingBalanceMinor;
+  final Value<DateTime?> openingBalanceAt;
   const AccountsCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
@@ -406,6 +506,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     this.color = const Value.absent(),
     this.archived = const Value.absent(),
     this.currency = const Value.absent(),
+    this.openingBalanceMinor = const Value.absent(),
+    this.openingBalanceAt = const Value.absent(),
   });
   AccountsCompanion.insert({
     this.id = const Value.absent(),
@@ -416,6 +518,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     required int color,
     this.archived = const Value.absent(),
     this.currency = const Value.absent(),
+    this.openingBalanceMinor = const Value.absent(),
+    this.openingBalanceAt = const Value.absent(),
   }) : name = Value(name),
        kind = Value(kind),
        color = Value(color);
@@ -428,6 +532,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     Expression<int>? color,
     Expression<bool>? archived,
     Expression<String>? currency,
+    Expression<int>? openingBalanceMinor,
+    Expression<DateTime>? openingBalanceAt,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -438,6 +544,9 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       if (color != null) 'color': color,
       if (archived != null) 'archived': archived,
       if (currency != null) 'currency': currency,
+      if (openingBalanceMinor != null)
+        'opening_balance_minor': openingBalanceMinor,
+      if (openingBalanceAt != null) 'opening_balance_at': openingBalanceAt,
     });
   }
 
@@ -450,6 +559,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     Value<int>? color,
     Value<bool>? archived,
     Value<String>? currency,
+    Value<int?>? openingBalanceMinor,
+    Value<DateTime?>? openingBalanceAt,
   }) {
     return AccountsCompanion(
       id: id ?? this.id,
@@ -460,6 +571,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       color: color ?? this.color,
       archived: archived ?? this.archived,
       currency: currency ?? this.currency,
+      openingBalanceMinor: openingBalanceMinor ?? this.openingBalanceMinor,
+      openingBalanceAt: openingBalanceAt ?? this.openingBalanceAt,
     );
   }
 
@@ -492,6 +605,12 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     if (currency.present) {
       map['currency'] = Variable<String>(currency.value);
     }
+    if (openingBalanceMinor.present) {
+      map['opening_balance_minor'] = Variable<int>(openingBalanceMinor.value);
+    }
+    if (openingBalanceAt.present) {
+      map['opening_balance_at'] = Variable<DateTime>(openingBalanceAt.value);
+    }
     return map;
   }
 
@@ -505,7 +624,9 @@ class AccountsCompanion extends UpdateCompanion<Account> {
           ..write('last4: $last4, ')
           ..write('color: $color, ')
           ..write('archived: $archived, ')
-          ..write('currency: $currency')
+          ..write('currency: $currency, ')
+          ..write('openingBalanceMinor: $openingBalanceMinor, ')
+          ..write('openingBalanceAt: $openingBalanceAt')
           ..write(')'))
         .toString();
   }
@@ -1171,6 +1292,17 @@ class $TransactionsTable extends Transactions
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _balanceAfterMinorMeta = const VerificationMeta(
+    'balanceAfterMinor',
+  );
+  @override
+  late final GeneratedColumn<int> balanceAfterMinor = GeneratedColumn<int>(
+    'balance_after_minor',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _duplicateOfIdMeta = const VerificationMeta(
     'duplicateOfId',
   );
@@ -1214,6 +1346,7 @@ class $TransactionsTable extends Transactions
     status,
     isTransfer,
     categoryLocked,
+    balanceAfterMinor,
     duplicateOfId,
     createdAt,
   ];
@@ -1338,6 +1471,15 @@ class $TransactionsTable extends Transactions
         ),
       );
     }
+    if (data.containsKey('balance_after_minor')) {
+      context.handle(
+        _balanceAfterMinorMeta,
+        balanceAfterMinor.isAcceptableOrUnknown(
+          data['balance_after_minor']!,
+          _balanceAfterMinorMeta,
+        ),
+      );
+    }
     if (data.containsKey('duplicate_of_id')) {
       context.handle(
         _duplicateOfIdMeta,
@@ -1440,6 +1582,10 @@ class $TransactionsTable extends Transactions
         DriftSqlType.bool,
         data['${effectivePrefix}category_locked'],
       )!,
+      balanceAfterMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}balance_after_minor'],
+      ),
       duplicateOfId: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}duplicate_of_id'],
@@ -1500,6 +1646,10 @@ class Transaction extends DataClass implements Insertable<Transaction> {
   final bool isTransfer;
   final bool categoryLocked;
 
+  /// The account balance the bank reported right after this transaction
+  /// ("Avl Bal Rs 12,345"), used to check the running balance.
+  final int? balanceAfterMinor;
+
   /// Set when dedup found a borderline match the user should confirm.
   final int? duplicateOfId;
   final DateTime createdAt;
@@ -1522,6 +1672,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     required this.status,
     required this.isTransfer,
     required this.categoryLocked,
+    this.balanceAfterMinor,
     this.duplicateOfId,
     required this.createdAt,
   });
@@ -1576,6 +1727,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     }
     map['is_transfer'] = Variable<bool>(isTransfer);
     map['category_locked'] = Variable<bool>(categoryLocked);
+    if (!nullToAbsent || balanceAfterMinor != null) {
+      map['balance_after_minor'] = Variable<int>(balanceAfterMinor);
+    }
     if (!nullToAbsent || duplicateOfId != null) {
       map['duplicate_of_id'] = Variable<int>(duplicateOfId);
     }
@@ -1619,6 +1773,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       status: Value(status),
       isTransfer: Value(isTransfer),
       categoryLocked: Value(categoryLocked),
+      balanceAfterMinor: balanceAfterMinor == null && nullToAbsent
+          ? const Value.absent()
+          : Value(balanceAfterMinor),
       duplicateOfId: duplicateOfId == null && nullToAbsent
           ? const Value.absent()
           : Value(duplicateOfId),
@@ -1658,6 +1815,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       ),
       isTransfer: serializer.fromJson<bool>(json['isTransfer']),
       categoryLocked: serializer.fromJson<bool>(json['categoryLocked']),
+      balanceAfterMinor: serializer.fromJson<int?>(json['balanceAfterMinor']),
       duplicateOfId: serializer.fromJson<int?>(json['duplicateOfId']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
@@ -1690,6 +1848,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       ),
       'isTransfer': serializer.toJson<bool>(isTransfer),
       'categoryLocked': serializer.toJson<bool>(categoryLocked),
+      'balanceAfterMinor': serializer.toJson<int?>(balanceAfterMinor),
       'duplicateOfId': serializer.toJson<int?>(duplicateOfId),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
@@ -1714,6 +1873,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     TxnStatus? status,
     bool? isTransfer,
     bool? categoryLocked,
+    Value<int?> balanceAfterMinor = const Value.absent(),
     Value<int?> duplicateOfId = const Value.absent(),
     DateTime? createdAt,
   }) => Transaction(
@@ -1739,6 +1899,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     status: status ?? this.status,
     isTransfer: isTransfer ?? this.isTransfer,
     categoryLocked: categoryLocked ?? this.categoryLocked,
+    balanceAfterMinor: balanceAfterMinor.present
+        ? balanceAfterMinor.value
+        : this.balanceAfterMinor,
     duplicateOfId: duplicateOfId.present
         ? duplicateOfId.value
         : this.duplicateOfId,
@@ -1782,6 +1945,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       categoryLocked: data.categoryLocked.present
           ? data.categoryLocked.value
           : this.categoryLocked,
+      balanceAfterMinor: data.balanceAfterMinor.present
+          ? data.balanceAfterMinor.value
+          : this.balanceAfterMinor,
       duplicateOfId: data.duplicateOfId.present
           ? data.duplicateOfId.value
           : this.duplicateOfId,
@@ -1810,6 +1976,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           ..write('status: $status, ')
           ..write('isTransfer: $isTransfer, ')
           ..write('categoryLocked: $categoryLocked, ')
+          ..write('balanceAfterMinor: $balanceAfterMinor, ')
           ..write('duplicateOfId: $duplicateOfId, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
@@ -1817,7 +1984,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     id,
     amountMinor,
     currency,
@@ -1836,9 +2003,10 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     status,
     isTransfer,
     categoryLocked,
+    balanceAfterMinor,
     duplicateOfId,
     createdAt,
-  );
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1861,6 +2029,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           other.status == this.status &&
           other.isTransfer == this.isTransfer &&
           other.categoryLocked == this.categoryLocked &&
+          other.balanceAfterMinor == this.balanceAfterMinor &&
           other.duplicateOfId == this.duplicateOfId &&
           other.createdAt == this.createdAt);
 }
@@ -1884,6 +2053,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
   final Value<TxnStatus> status;
   final Value<bool> isTransfer;
   final Value<bool> categoryLocked;
+  final Value<int?> balanceAfterMinor;
   final Value<int?> duplicateOfId;
   final Value<DateTime> createdAt;
   const TransactionsCompanion({
@@ -1905,6 +2075,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.status = const Value.absent(),
     this.isTransfer = const Value.absent(),
     this.categoryLocked = const Value.absent(),
+    this.balanceAfterMinor = const Value.absent(),
     this.duplicateOfId = const Value.absent(),
     this.createdAt = const Value.absent(),
   });
@@ -1927,6 +2098,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     required TxnStatus status,
     this.isTransfer = const Value.absent(),
     this.categoryLocked = const Value.absent(),
+    this.balanceAfterMinor = const Value.absent(),
     this.duplicateOfId = const Value.absent(),
     this.createdAt = const Value.absent(),
   }) : amountMinor = Value(amountMinor),
@@ -1953,6 +2125,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     Expression<int>? status,
     Expression<bool>? isTransfer,
     Expression<bool>? categoryLocked,
+    Expression<int>? balanceAfterMinor,
     Expression<int>? duplicateOfId,
     Expression<DateTime>? createdAt,
   }) {
@@ -1975,6 +2148,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       if (status != null) 'status': status,
       if (isTransfer != null) 'is_transfer': isTransfer,
       if (categoryLocked != null) 'category_locked': categoryLocked,
+      if (balanceAfterMinor != null) 'balance_after_minor': balanceAfterMinor,
       if (duplicateOfId != null) 'duplicate_of_id': duplicateOfId,
       if (createdAt != null) 'created_at': createdAt,
     });
@@ -1999,6 +2173,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     Value<TxnStatus>? status,
     Value<bool>? isTransfer,
     Value<bool>? categoryLocked,
+    Value<int?>? balanceAfterMinor,
     Value<int?>? duplicateOfId,
     Value<DateTime>? createdAt,
   }) {
@@ -2021,6 +2196,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       status: status ?? this.status,
       isTransfer: isTransfer ?? this.isTransfer,
       categoryLocked: categoryLocked ?? this.categoryLocked,
+      balanceAfterMinor: balanceAfterMinor ?? this.balanceAfterMinor,
       duplicateOfId: duplicateOfId ?? this.duplicateOfId,
       createdAt: createdAt ?? this.createdAt,
     );
@@ -2089,6 +2265,9 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     if (categoryLocked.present) {
       map['category_locked'] = Variable<bool>(categoryLocked.value);
     }
+    if (balanceAfterMinor.present) {
+      map['balance_after_minor'] = Variable<int>(balanceAfterMinor.value);
+    }
     if (duplicateOfId.present) {
       map['duplicate_of_id'] = Variable<int>(duplicateOfId.value);
     }
@@ -2119,6 +2298,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
           ..write('status: $status, ')
           ..write('isTransfer: $isTransfer, ')
           ..write('categoryLocked: $categoryLocked, ')
+          ..write('balanceAfterMinor: $balanceAfterMinor, ')
           ..write('duplicateOfId: $duplicateOfId, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
@@ -3430,6 +3610,1019 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
   }
 }
 
+class $PayslipsTable extends Payslips with TableInfo<$PayslipsTable, Payslip> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PayslipsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _monthMeta = const VerificationMeta('month');
+  @override
+  late final GeneratedColumn<DateTime> month = GeneratedColumn<DateTime>(
+    'month',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _employerMeta = const VerificationMeta(
+    'employer',
+  );
+  @override
+  late final GeneratedColumn<String> employer = GeneratedColumn<String>(
+    'employer',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _payDateMeta = const VerificationMeta(
+    'payDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> payDate = GeneratedColumn<DateTime>(
+    'pay_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _currencyMeta = const VerificationMeta(
+    'currency',
+  );
+  @override
+  late final GeneratedColumn<String> currency = GeneratedColumn<String>(
+    'currency',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('INR'),
+  );
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  @override
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+    'note',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _salaryTxnIdMeta = const VerificationMeta(
+    'salaryTxnId',
+  );
+  @override
+  late final GeneratedColumn<int> salaryTxnId = GeneratedColumn<int>(
+    'salary_txn_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES transactions (id) ON DELETE SET NULL',
+    ),
+  );
+  static const VerificationMeta _autoMatchMeta = const VerificationMeta(
+    'autoMatch',
+  );
+  @override
+  late final GeneratedColumn<bool> autoMatch = GeneratedColumn<bool>(
+    'auto_match',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("auto_match" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    month,
+    employer,
+    payDate,
+    currency,
+    note,
+    salaryTxnId,
+    autoMatch,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'payslips';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<Payslip> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('month')) {
+      context.handle(
+        _monthMeta,
+        month.isAcceptableOrUnknown(data['month']!, _monthMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_monthMeta);
+    }
+    if (data.containsKey('employer')) {
+      context.handle(
+        _employerMeta,
+        employer.isAcceptableOrUnknown(data['employer']!, _employerMeta),
+      );
+    }
+    if (data.containsKey('pay_date')) {
+      context.handle(
+        _payDateMeta,
+        payDate.isAcceptableOrUnknown(data['pay_date']!, _payDateMeta),
+      );
+    }
+    if (data.containsKey('currency')) {
+      context.handle(
+        _currencyMeta,
+        currency.isAcceptableOrUnknown(data['currency']!, _currencyMeta),
+      );
+    }
+    if (data.containsKey('note')) {
+      context.handle(
+        _noteMeta,
+        note.isAcceptableOrUnknown(data['note']!, _noteMeta),
+      );
+    }
+    if (data.containsKey('salary_txn_id')) {
+      context.handle(
+        _salaryTxnIdMeta,
+        salaryTxnId.isAcceptableOrUnknown(
+          data['salary_txn_id']!,
+          _salaryTxnIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('auto_match')) {
+      context.handle(
+        _autoMatchMeta,
+        autoMatch.isAcceptableOrUnknown(data['auto_match']!, _autoMatchMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {month, employer},
+  ];
+  @override
+  Payslip map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Payslip(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      month: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}month'],
+      )!,
+      employer: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}employer'],
+      )!,
+      payDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}pay_date'],
+      ),
+      currency: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}currency'],
+      )!,
+      note: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note'],
+      ),
+      salaryTxnId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}salary_txn_id'],
+      ),
+      autoMatch: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}auto_match'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $PayslipsTable createAlias(String alias) {
+    return $PayslipsTable(attachedDatabase, alias);
+  }
+}
+
+class Payslip extends DataClass implements Insertable<Payslip> {
+  final int id;
+
+  /// First day of the month the pay is for.
+  final DateTime month;
+  final String employer;
+  final DateTime? payDate;
+  final String currency;
+  final String? note;
+
+  /// The bank credit this payslip was paid by.
+  final int? salaryTxnId;
+
+  /// False once the user has rejected a match, so it isn't made again.
+  final bool autoMatch;
+  final DateTime createdAt;
+  const Payslip({
+    required this.id,
+    required this.month,
+    required this.employer,
+    this.payDate,
+    required this.currency,
+    this.note,
+    this.salaryTxnId,
+    required this.autoMatch,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['month'] = Variable<DateTime>(month);
+    map['employer'] = Variable<String>(employer);
+    if (!nullToAbsent || payDate != null) {
+      map['pay_date'] = Variable<DateTime>(payDate);
+    }
+    map['currency'] = Variable<String>(currency);
+    if (!nullToAbsent || note != null) {
+      map['note'] = Variable<String>(note);
+    }
+    if (!nullToAbsent || salaryTxnId != null) {
+      map['salary_txn_id'] = Variable<int>(salaryTxnId);
+    }
+    map['auto_match'] = Variable<bool>(autoMatch);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  PayslipsCompanion toCompanion(bool nullToAbsent) {
+    return PayslipsCompanion(
+      id: Value(id),
+      month: Value(month),
+      employer: Value(employer),
+      payDate: payDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(payDate),
+      currency: Value(currency),
+      note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+      salaryTxnId: salaryTxnId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(salaryTxnId),
+      autoMatch: Value(autoMatch),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory Payslip.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Payslip(
+      id: serializer.fromJson<int>(json['id']),
+      month: serializer.fromJson<DateTime>(json['month']),
+      employer: serializer.fromJson<String>(json['employer']),
+      payDate: serializer.fromJson<DateTime?>(json['payDate']),
+      currency: serializer.fromJson<String>(json['currency']),
+      note: serializer.fromJson<String?>(json['note']),
+      salaryTxnId: serializer.fromJson<int?>(json['salaryTxnId']),
+      autoMatch: serializer.fromJson<bool>(json['autoMatch']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'month': serializer.toJson<DateTime>(month),
+      'employer': serializer.toJson<String>(employer),
+      'payDate': serializer.toJson<DateTime?>(payDate),
+      'currency': serializer.toJson<String>(currency),
+      'note': serializer.toJson<String?>(note),
+      'salaryTxnId': serializer.toJson<int?>(salaryTxnId),
+      'autoMatch': serializer.toJson<bool>(autoMatch),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  Payslip copyWith({
+    int? id,
+    DateTime? month,
+    String? employer,
+    Value<DateTime?> payDate = const Value.absent(),
+    String? currency,
+    Value<String?> note = const Value.absent(),
+    Value<int?> salaryTxnId = const Value.absent(),
+    bool? autoMatch,
+    DateTime? createdAt,
+  }) => Payslip(
+    id: id ?? this.id,
+    month: month ?? this.month,
+    employer: employer ?? this.employer,
+    payDate: payDate.present ? payDate.value : this.payDate,
+    currency: currency ?? this.currency,
+    note: note.present ? note.value : this.note,
+    salaryTxnId: salaryTxnId.present ? salaryTxnId.value : this.salaryTxnId,
+    autoMatch: autoMatch ?? this.autoMatch,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  Payslip copyWithCompanion(PayslipsCompanion data) {
+    return Payslip(
+      id: data.id.present ? data.id.value : this.id,
+      month: data.month.present ? data.month.value : this.month,
+      employer: data.employer.present ? data.employer.value : this.employer,
+      payDate: data.payDate.present ? data.payDate.value : this.payDate,
+      currency: data.currency.present ? data.currency.value : this.currency,
+      note: data.note.present ? data.note.value : this.note,
+      salaryTxnId: data.salaryTxnId.present
+          ? data.salaryTxnId.value
+          : this.salaryTxnId,
+      autoMatch: data.autoMatch.present ? data.autoMatch.value : this.autoMatch,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Payslip(')
+          ..write('id: $id, ')
+          ..write('month: $month, ')
+          ..write('employer: $employer, ')
+          ..write('payDate: $payDate, ')
+          ..write('currency: $currency, ')
+          ..write('note: $note, ')
+          ..write('salaryTxnId: $salaryTxnId, ')
+          ..write('autoMatch: $autoMatch, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    month,
+    employer,
+    payDate,
+    currency,
+    note,
+    salaryTxnId,
+    autoMatch,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Payslip &&
+          other.id == this.id &&
+          other.month == this.month &&
+          other.employer == this.employer &&
+          other.payDate == this.payDate &&
+          other.currency == this.currency &&
+          other.note == this.note &&
+          other.salaryTxnId == this.salaryTxnId &&
+          other.autoMatch == this.autoMatch &&
+          other.createdAt == this.createdAt);
+}
+
+class PayslipsCompanion extends UpdateCompanion<Payslip> {
+  final Value<int> id;
+  final Value<DateTime> month;
+  final Value<String> employer;
+  final Value<DateTime?> payDate;
+  final Value<String> currency;
+  final Value<String?> note;
+  final Value<int?> salaryTxnId;
+  final Value<bool> autoMatch;
+  final Value<DateTime> createdAt;
+  const PayslipsCompanion({
+    this.id = const Value.absent(),
+    this.month = const Value.absent(),
+    this.employer = const Value.absent(),
+    this.payDate = const Value.absent(),
+    this.currency = const Value.absent(),
+    this.note = const Value.absent(),
+    this.salaryTxnId = const Value.absent(),
+    this.autoMatch = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  PayslipsCompanion.insert({
+    this.id = const Value.absent(),
+    required DateTime month,
+    this.employer = const Value.absent(),
+    this.payDate = const Value.absent(),
+    this.currency = const Value.absent(),
+    this.note = const Value.absent(),
+    this.salaryTxnId = const Value.absent(),
+    this.autoMatch = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  }) : month = Value(month);
+  static Insertable<Payslip> custom({
+    Expression<int>? id,
+    Expression<DateTime>? month,
+    Expression<String>? employer,
+    Expression<DateTime>? payDate,
+    Expression<String>? currency,
+    Expression<String>? note,
+    Expression<int>? salaryTxnId,
+    Expression<bool>? autoMatch,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (month != null) 'month': month,
+      if (employer != null) 'employer': employer,
+      if (payDate != null) 'pay_date': payDate,
+      if (currency != null) 'currency': currency,
+      if (note != null) 'note': note,
+      if (salaryTxnId != null) 'salary_txn_id': salaryTxnId,
+      if (autoMatch != null) 'auto_match': autoMatch,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  PayslipsCompanion copyWith({
+    Value<int>? id,
+    Value<DateTime>? month,
+    Value<String>? employer,
+    Value<DateTime?>? payDate,
+    Value<String>? currency,
+    Value<String?>? note,
+    Value<int?>? salaryTxnId,
+    Value<bool>? autoMatch,
+    Value<DateTime>? createdAt,
+  }) {
+    return PayslipsCompanion(
+      id: id ?? this.id,
+      month: month ?? this.month,
+      employer: employer ?? this.employer,
+      payDate: payDate ?? this.payDate,
+      currency: currency ?? this.currency,
+      note: note ?? this.note,
+      salaryTxnId: salaryTxnId ?? this.salaryTxnId,
+      autoMatch: autoMatch ?? this.autoMatch,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (month.present) {
+      map['month'] = Variable<DateTime>(month.value);
+    }
+    if (employer.present) {
+      map['employer'] = Variable<String>(employer.value);
+    }
+    if (payDate.present) {
+      map['pay_date'] = Variable<DateTime>(payDate.value);
+    }
+    if (currency.present) {
+      map['currency'] = Variable<String>(currency.value);
+    }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
+    if (salaryTxnId.present) {
+      map['salary_txn_id'] = Variable<int>(salaryTxnId.value);
+    }
+    if (autoMatch.present) {
+      map['auto_match'] = Variable<bool>(autoMatch.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PayslipsCompanion(')
+          ..write('id: $id, ')
+          ..write('month: $month, ')
+          ..write('employer: $employer, ')
+          ..write('payDate: $payDate, ')
+          ..write('currency: $currency, ')
+          ..write('note: $note, ')
+          ..write('salaryTxnId: $salaryTxnId, ')
+          ..write('autoMatch: $autoMatch, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $PayslipLinesTable extends PayslipLines
+    with TableInfo<$PayslipLinesTable, PayslipLine> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PayslipLinesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _payslipIdMeta = const VerificationMeta(
+    'payslipId',
+  );
+  @override
+  late final GeneratedColumn<int> payslipId = GeneratedColumn<int>(
+    'payslip_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES payslips (id) ON DELETE CASCADE',
+    ),
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<PayslipLineKind, int> kind =
+      GeneratedColumn<int>(
+        'kind',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: true,
+      ).withConverter<PayslipLineKind>($PayslipLinesTable.$converterkind);
+  static const VerificationMeta _codeMeta = const VerificationMeta('code');
+  @override
+  late final GeneratedColumn<String> code = GeneratedColumn<String>(
+    'code',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _labelMeta = const VerificationMeta('label');
+  @override
+  late final GeneratedColumn<String> label = GeneratedColumn<String>(
+    'label',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _amountMinorMeta = const VerificationMeta(
+    'amountMinor',
+  );
+  @override
+  late final GeneratedColumn<int> amountMinor = GeneratedColumn<int>(
+    'amount_minor',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sortOrderMeta = const VerificationMeta(
+    'sortOrder',
+  );
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+    'sort_order',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    payslipId,
+    kind,
+    code,
+    label,
+    amountMinor,
+    sortOrder,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'payslip_lines';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PayslipLine> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('payslip_id')) {
+      context.handle(
+        _payslipIdMeta,
+        payslipId.isAcceptableOrUnknown(data['payslip_id']!, _payslipIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_payslipIdMeta);
+    }
+    if (data.containsKey('code')) {
+      context.handle(
+        _codeMeta,
+        code.isAcceptableOrUnknown(data['code']!, _codeMeta),
+      );
+    }
+    if (data.containsKey('label')) {
+      context.handle(
+        _labelMeta,
+        label.isAcceptableOrUnknown(data['label']!, _labelMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_labelMeta);
+    }
+    if (data.containsKey('amount_minor')) {
+      context.handle(
+        _amountMinorMeta,
+        amountMinor.isAcceptableOrUnknown(
+          data['amount_minor']!,
+          _amountMinorMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_amountMinorMeta);
+    }
+    if (data.containsKey('sort_order')) {
+      context.handle(
+        _sortOrderMeta,
+        sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  PayslipLine map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PayslipLine(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      payslipId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}payslip_id'],
+      )!,
+      kind: $PayslipLinesTable.$converterkind.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.int,
+          data['${effectivePrefix}kind'],
+        )!,
+      ),
+      code: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}code'],
+      )!,
+      label: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}label'],
+      )!,
+      amountMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}amount_minor'],
+      )!,
+      sortOrder: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sort_order'],
+      )!,
+    );
+  }
+
+  @override
+  $PayslipLinesTable createAlias(String alias) {
+    return $PayslipLinesTable(attachedDatabase, alias);
+  }
+
+  static JsonTypeConverter2<PayslipLineKind, int, int> $converterkind =
+      const EnumIndexConverter<PayslipLineKind>(PayslipLineKind.values);
+}
+
+class PayslipLine extends DataClass implements Insertable<PayslipLine> {
+  final int id;
+  final int payslipId;
+  final PayslipLineKind kind;
+
+  /// Stable key of a standard line ("pf", "food"); empty for custom lines.
+  final String code;
+  final String label;
+  final int amountMinor;
+  final int sortOrder;
+  const PayslipLine({
+    required this.id,
+    required this.payslipId,
+    required this.kind,
+    required this.code,
+    required this.label,
+    required this.amountMinor,
+    required this.sortOrder,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['payslip_id'] = Variable<int>(payslipId);
+    {
+      map['kind'] = Variable<int>(
+        $PayslipLinesTable.$converterkind.toSql(kind),
+      );
+    }
+    map['code'] = Variable<String>(code);
+    map['label'] = Variable<String>(label);
+    map['amount_minor'] = Variable<int>(amountMinor);
+    map['sort_order'] = Variable<int>(sortOrder);
+    return map;
+  }
+
+  PayslipLinesCompanion toCompanion(bool nullToAbsent) {
+    return PayslipLinesCompanion(
+      id: Value(id),
+      payslipId: Value(payslipId),
+      kind: Value(kind),
+      code: Value(code),
+      label: Value(label),
+      amountMinor: Value(amountMinor),
+      sortOrder: Value(sortOrder),
+    );
+  }
+
+  factory PayslipLine.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PayslipLine(
+      id: serializer.fromJson<int>(json['id']),
+      payslipId: serializer.fromJson<int>(json['payslipId']),
+      kind: $PayslipLinesTable.$converterkind.fromJson(
+        serializer.fromJson<int>(json['kind']),
+      ),
+      code: serializer.fromJson<String>(json['code']),
+      label: serializer.fromJson<String>(json['label']),
+      amountMinor: serializer.fromJson<int>(json['amountMinor']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'payslipId': serializer.toJson<int>(payslipId),
+      'kind': serializer.toJson<int>(
+        $PayslipLinesTable.$converterkind.toJson(kind),
+      ),
+      'code': serializer.toJson<String>(code),
+      'label': serializer.toJson<String>(label),
+      'amountMinor': serializer.toJson<int>(amountMinor),
+      'sortOrder': serializer.toJson<int>(sortOrder),
+    };
+  }
+
+  PayslipLine copyWith({
+    int? id,
+    int? payslipId,
+    PayslipLineKind? kind,
+    String? code,
+    String? label,
+    int? amountMinor,
+    int? sortOrder,
+  }) => PayslipLine(
+    id: id ?? this.id,
+    payslipId: payslipId ?? this.payslipId,
+    kind: kind ?? this.kind,
+    code: code ?? this.code,
+    label: label ?? this.label,
+    amountMinor: amountMinor ?? this.amountMinor,
+    sortOrder: sortOrder ?? this.sortOrder,
+  );
+  PayslipLine copyWithCompanion(PayslipLinesCompanion data) {
+    return PayslipLine(
+      id: data.id.present ? data.id.value : this.id,
+      payslipId: data.payslipId.present ? data.payslipId.value : this.payslipId,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      code: data.code.present ? data.code.value : this.code,
+      label: data.label.present ? data.label.value : this.label,
+      amountMinor: data.amountMinor.present
+          ? data.amountMinor.value
+          : this.amountMinor,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PayslipLine(')
+          ..write('id: $id, ')
+          ..write('payslipId: $payslipId, ')
+          ..write('kind: $kind, ')
+          ..write('code: $code, ')
+          ..write('label: $label, ')
+          ..write('amountMinor: $amountMinor, ')
+          ..write('sortOrder: $sortOrder')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, payslipId, kind, code, label, amountMinor, sortOrder);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PayslipLine &&
+          other.id == this.id &&
+          other.payslipId == this.payslipId &&
+          other.kind == this.kind &&
+          other.code == this.code &&
+          other.label == this.label &&
+          other.amountMinor == this.amountMinor &&
+          other.sortOrder == this.sortOrder);
+}
+
+class PayslipLinesCompanion extends UpdateCompanion<PayslipLine> {
+  final Value<int> id;
+  final Value<int> payslipId;
+  final Value<PayslipLineKind> kind;
+  final Value<String> code;
+  final Value<String> label;
+  final Value<int> amountMinor;
+  final Value<int> sortOrder;
+  const PayslipLinesCompanion({
+    this.id = const Value.absent(),
+    this.payslipId = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.code = const Value.absent(),
+    this.label = const Value.absent(),
+    this.amountMinor = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+  });
+  PayslipLinesCompanion.insert({
+    this.id = const Value.absent(),
+    required int payslipId,
+    required PayslipLineKind kind,
+    this.code = const Value.absent(),
+    required String label,
+    required int amountMinor,
+    this.sortOrder = const Value.absent(),
+  }) : payslipId = Value(payslipId),
+       kind = Value(kind),
+       label = Value(label),
+       amountMinor = Value(amountMinor);
+  static Insertable<PayslipLine> custom({
+    Expression<int>? id,
+    Expression<int>? payslipId,
+    Expression<int>? kind,
+    Expression<String>? code,
+    Expression<String>? label,
+    Expression<int>? amountMinor,
+    Expression<int>? sortOrder,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (payslipId != null) 'payslip_id': payslipId,
+      if (kind != null) 'kind': kind,
+      if (code != null) 'code': code,
+      if (label != null) 'label': label,
+      if (amountMinor != null) 'amount_minor': amountMinor,
+      if (sortOrder != null) 'sort_order': sortOrder,
+    });
+  }
+
+  PayslipLinesCompanion copyWith({
+    Value<int>? id,
+    Value<int>? payslipId,
+    Value<PayslipLineKind>? kind,
+    Value<String>? code,
+    Value<String>? label,
+    Value<int>? amountMinor,
+    Value<int>? sortOrder,
+  }) {
+    return PayslipLinesCompanion(
+      id: id ?? this.id,
+      payslipId: payslipId ?? this.payslipId,
+      kind: kind ?? this.kind,
+      code: code ?? this.code,
+      label: label ?? this.label,
+      amountMinor: amountMinor ?? this.amountMinor,
+      sortOrder: sortOrder ?? this.sortOrder,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (payslipId.present) {
+      map['payslip_id'] = Variable<int>(payslipId.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<int>(
+        $PayslipLinesTable.$converterkind.toSql(kind.value),
+      );
+    }
+    if (code.present) {
+      map['code'] = Variable<String>(code.value);
+    }
+    if (label.present) {
+      map['label'] = Variable<String>(label.value);
+    }
+    if (amountMinor.present) {
+      map['amount_minor'] = Variable<int>(amountMinor.value);
+    }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PayslipLinesCompanion(')
+          ..write('id: $id, ')
+          ..write('payslipId: $payslipId, ')
+          ..write('kind: $kind, ')
+          ..write('code: $code, ')
+          ..write('label: $label, ')
+          ..write('amountMinor: $amountMinor, ')
+          ..write('sortOrder: $sortOrder')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -3439,6 +4632,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $RawMessagesTable rawMessages = $RawMessagesTable(this);
   late final $MerchantRulesTable merchantRules = $MerchantRulesTable(this);
   late final $BudgetsTable budgets = $BudgetsTable(this);
+  late final $PayslipsTable payslips = $PayslipsTable(this);
+  late final $PayslipLinesTable payslipLines = $PayslipLinesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3450,6 +4645,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     rawMessages,
     merchantRules,
     budgets,
+    payslips,
+    payslipLines,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -3474,6 +4671,20 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       ),
       result: [TableUpdate('budgets', kind: UpdateKind.delete)],
     ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'transactions',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('payslips', kind: UpdateKind.update)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'payslips',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('payslip_lines', kind: UpdateKind.delete)],
+    ),
   ]);
 }
 
@@ -3486,6 +4697,8 @@ typedef $$AccountsTableCreateCompanionBuilder = AccountsCompanion Function({
   required int color,
   Value<bool> archived,
   Value<String> currency,
+  Value<int?> openingBalanceMinor,
+  Value<DateTime?> openingBalanceAt,
 });
 typedef $$AccountsTableUpdateCompanionBuilder = AccountsCompanion Function({
   Value<int> id,
@@ -3496,6 +4709,8 @@ typedef $$AccountsTableUpdateCompanionBuilder = AccountsCompanion Function({
   Value<int> color,
   Value<bool> archived,
   Value<String> currency,
+  Value<int?> openingBalanceMinor,
+  Value<DateTime?> openingBalanceAt,
 });
 
 final class $$AccountsTableReferences
@@ -3568,6 +4783,16 @@ class $$AccountsTableFilterComposer
 
   ColumnFilters<String> get currency => $composableBuilder(
     column: $table.currency,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get openingBalanceMinor => $composableBuilder(
+    column: $table.openingBalanceMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get openingBalanceAt => $composableBuilder(
+    column: $table.openingBalanceAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3645,6 +4870,16 @@ class $$AccountsTableOrderingComposer
     column: $table.currency,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get openingBalanceMinor => $composableBuilder(
+    column: $table.openingBalanceMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get openingBalanceAt => $composableBuilder(
+    column: $table.openingBalanceAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AccountsTableAnnotationComposer
@@ -3681,6 +4916,16 @@ class $$AccountsTableAnnotationComposer
 
   GeneratedColumn<String> get currency =>
       $composableBuilder(column: $table.currency, builder: (column) => column);
+
+  GeneratedColumn<int> get openingBalanceMinor => $composableBuilder(
+    column: $table.openingBalanceMinor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get openingBalanceAt => $composableBuilder(
+    column: $table.openingBalanceAt,
+    builder: (column) => column,
+  );
 
   Expression<T> transactionsRefs<T extends Object>(
     Expression<T> Function($$TransactionsTableAnnotationComposer a) f,
@@ -3744,6 +4989,8 @@ class $$AccountsTableTableManager
                 Value<int> color = const Value.absent(),
                 Value<bool> archived = const Value.absent(),
                 Value<String> currency = const Value.absent(),
+                Value<int?> openingBalanceMinor = const Value.absent(),
+                Value<DateTime?> openingBalanceAt = const Value.absent(),
               }) => AccountsCompanion(
                 id: id,
                 name: name,
@@ -3753,6 +5000,8 @@ class $$AccountsTableTableManager
                 color: color,
                 archived: archived,
                 currency: currency,
+                openingBalanceMinor: openingBalanceMinor,
+                openingBalanceAt: openingBalanceAt,
               ),
           createCompanionCallback:
               ({
@@ -3764,6 +5013,8 @@ class $$AccountsTableTableManager
                 required int color,
                 Value<bool> archived = const Value.absent(),
                 Value<String> currency = const Value.absent(),
+                Value<int?> openingBalanceMinor = const Value.absent(),
+                Value<DateTime?> openingBalanceAt = const Value.absent(),
               }) => AccountsCompanion.insert(
                 id: id,
                 name: name,
@@ -3773,6 +5024,8 @@ class $$AccountsTableTableManager
                 color: color,
                 archived: archived,
                 currency: currency,
+                openingBalanceMinor: openingBalanceMinor,
+                openingBalanceAt: openingBalanceAt,
               ),
           withReferenceMapper: (p0) => p0
               .map(
@@ -4378,6 +5631,7 @@ typedef $$TransactionsTableCreateCompanionBuilder =
       required TxnStatus status,
       Value<bool> isTransfer,
       Value<bool> categoryLocked,
+      Value<int?> balanceAfterMinor,
       Value<int?> duplicateOfId,
       Value<DateTime> createdAt,
     });
@@ -4401,6 +5655,7 @@ typedef $$TransactionsTableUpdateCompanionBuilder =
       Value<TxnStatus> status,
       Value<bool> isTransfer,
       Value<bool> categoryLocked,
+      Value<int?> balanceAfterMinor,
       Value<int?> duplicateOfId,
       Value<DateTime> createdAt,
     });
@@ -4456,6 +5711,25 @@ final class $$TransactionsTableReferences
     ).filter((f) => f.transactionId.id.sqlEquals($_itemColumn<int>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_rawMessagesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$PayslipsTable, List<Payslip>> _payslipsRefsTable(
+    _$AppDatabase db,
+  ) => MultiTypedResultKey.fromTable(
+    db.payslips,
+    aliasName: 'transactions__id__payslips__salary_txn_id',
+  );
+
+  $$PayslipsTableProcessedTableManager get payslipsRefs {
+    final manager = $$PayslipsTableTableManager(
+      $_db,
+      $_db.payslips,
+    ).filter((f) => f.salaryTxnId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_payslipsRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -4554,6 +5828,11 @@ class $$TransactionsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<int> get balanceAfterMinor => $composableBuilder(
+    column: $table.balanceAfterMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<int> get duplicateOfId => $composableBuilder(
     column: $table.duplicateOfId,
     builder: (column) => ColumnFilters(column),
@@ -4626,6 +5905,31 @@ class $$TransactionsTableFilterComposer
           }) => $$RawMessagesTableFilterComposer(
             $db: $db,
             $table: $db.rawMessages,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> payslipsRefs(
+    Expression<bool> Function($$PayslipsTableFilterComposer f) f,
+  ) {
+    final $$PayslipsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.payslips,
+      getReferencedColumn: (t) => t.salaryTxnId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PayslipsTableFilterComposer(
+            $db: $db,
+            $table: $db.payslips,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -4722,6 +6026,11 @@ class $$TransactionsTableOrderingComposer
 
   ColumnOrderings<bool> get categoryLocked => $composableBuilder(
     column: $table.categoryLocked,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get balanceAfterMinor => $composableBuilder(
+    column: $table.balanceAfterMinor,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -4855,6 +6164,11 @@ class $$TransactionsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<int> get balanceAfterMinor => $composableBuilder(
+    column: $table.balanceAfterMinor,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<int> get duplicateOfId => $composableBuilder(
     column: $table.duplicateOfId,
     builder: (column) => column,
@@ -4933,6 +6247,31 @@ class $$TransactionsTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> payslipsRefs<T extends Object>(
+    Expression<T> Function($$PayslipsTableAnnotationComposer a) f,
+  ) {
+    final $$PayslipsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.payslips,
+      getReferencedColumn: (t) => t.salaryTxnId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PayslipsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.payslips,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$TransactionsTableTableManager
@@ -4952,6 +6291,7 @@ class $$TransactionsTableTableManager
             bool categoryId,
             bool accountId,
             bool rawMessagesRefs,
+            bool payslipsRefs,
           })
         > {
   $$TransactionsTableTableManager(_$AppDatabase db, $TransactionsTable table)
@@ -4985,6 +6325,7 @@ class $$TransactionsTableTableManager
                 Value<TxnStatus> status = const Value.absent(),
                 Value<bool> isTransfer = const Value.absent(),
                 Value<bool> categoryLocked = const Value.absent(),
+                Value<int?> balanceAfterMinor = const Value.absent(),
                 Value<int?> duplicateOfId = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
               }) => TransactionsCompanion(
@@ -5006,6 +6347,7 @@ class $$TransactionsTableTableManager
                 status: status,
                 isTransfer: isTransfer,
                 categoryLocked: categoryLocked,
+                balanceAfterMinor: balanceAfterMinor,
                 duplicateOfId: duplicateOfId,
                 createdAt: createdAt,
               ),
@@ -5029,6 +6371,7 @@ class $$TransactionsTableTableManager
                 required TxnStatus status,
                 Value<bool> isTransfer = const Value.absent(),
                 Value<bool> categoryLocked = const Value.absent(),
+                Value<int?> balanceAfterMinor = const Value.absent(),
                 Value<int?> duplicateOfId = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
               }) => TransactionsCompanion.insert(
@@ -5050,6 +6393,7 @@ class $$TransactionsTableTableManager
                 status: status,
                 isTransfer: isTransfer,
                 categoryLocked: categoryLocked,
+                balanceAfterMinor: balanceAfterMinor,
                 duplicateOfId: duplicateOfId,
                 createdAt: createdAt,
               ),
@@ -5066,11 +6410,13 @@ class $$TransactionsTableTableManager
                 categoryId = false,
                 accountId = false,
                 rawMessagesRefs = false,
+                payslipsRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
                   explicitlyWatchedTables: [
                     if (rawMessagesRefs) db.rawMessages,
+                    if (payslipsRefs) db.payslips,
                   ],
                   addJoins:
                       <
@@ -5136,6 +6482,27 @@ class $$TransactionsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (payslipsRefs)
+                        await $_getPrefetchedData<
+                          Transaction,
+                          $TransactionsTable,
+                          Payslip
+                        >(
+                          currentTable: table,
+                          referencedTable: $$TransactionsTableReferences
+                              ._payslipsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$TransactionsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).payslipsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.salaryTxnId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -5160,6 +6527,7 @@ typedef $$TransactionsTableProcessedTableManager =
         bool categoryId,
         bool accountId,
         bool rawMessagesRefs,
+        bool payslipsRefs,
       })
     >;
 typedef $$RawMessagesTableCreateCompanionBuilder =
@@ -6183,6 +7551,832 @@ typedef $$BudgetsTableProcessedTableManager =
       Budget,
       PrefetchHooks Function({bool categoryId})
     >;
+typedef $$PayslipsTableCreateCompanionBuilder = PayslipsCompanion Function({
+  Value<int> id,
+  required DateTime month,
+  Value<String> employer,
+  Value<DateTime?> payDate,
+  Value<String> currency,
+  Value<String?> note,
+  Value<int?> salaryTxnId,
+  Value<bool> autoMatch,
+  Value<DateTime> createdAt,
+});
+typedef $$PayslipsTableUpdateCompanionBuilder = PayslipsCompanion Function({
+  Value<int> id,
+  Value<DateTime> month,
+  Value<String> employer,
+  Value<DateTime?> payDate,
+  Value<String> currency,
+  Value<String?> note,
+  Value<int?> salaryTxnId,
+  Value<bool> autoMatch,
+  Value<DateTime> createdAt,
+});
+
+final class $$PayslipsTableReferences
+    extends BaseReferences<_$AppDatabase, $PayslipsTable, Payslip> {
+  $$PayslipsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $TransactionsTable _salaryTxnIdTable(_$AppDatabase db) =>
+      db.transactions.createAlias('payslips__salary_txn_id__transactions__id');
+
+  $$TransactionsTableProcessedTableManager? get salaryTxnId {
+    final $_column = $_itemColumn<int>('salary_txn_id');
+    if ($_column == null) return null;
+    final manager = $$TransactionsTableTableManager(
+      $_db,
+      $_db.transactions,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_salaryTxnIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static MultiTypedResultKey<$PayslipLinesTable, List<PayslipLine>>
+  _payslipLinesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.payslipLines,
+    aliasName: 'payslips__id__payslip_lines__payslip_id',
+  );
+
+  $$PayslipLinesTableProcessedTableManager get payslipLinesRefs {
+    final manager = $$PayslipLinesTableTableManager(
+      $_db,
+      $_db.payslipLines,
+    ).filter((f) => f.payslipId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_payslipLinesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$PayslipsTableFilterComposer
+    extends Composer<_$AppDatabase, $PayslipsTable> {
+  $$PayslipsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get month => $composableBuilder(
+    column: $table.month,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get employer => $composableBuilder(
+    column: $table.employer,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get payDate => $composableBuilder(
+    column: $table.payDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get currency => $composableBuilder(
+    column: $table.currency,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get autoMatch => $composableBuilder(
+    column: $table.autoMatch,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$TransactionsTableFilterComposer get salaryTxnId {
+    final $$TransactionsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.salaryTxnId,
+      referencedTable: $db.transactions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TransactionsTableFilterComposer(
+            $db: $db,
+            $table: $db.transactions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<bool> payslipLinesRefs(
+    Expression<bool> Function($$PayslipLinesTableFilterComposer f) f,
+  ) {
+    final $$PayslipLinesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.payslipLines,
+      getReferencedColumn: (t) => t.payslipId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PayslipLinesTableFilterComposer(
+            $db: $db,
+            $table: $db.payslipLines,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$PayslipsTableOrderingComposer
+    extends Composer<_$AppDatabase, $PayslipsTable> {
+  $$PayslipsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get month => $composableBuilder(
+    column: $table.month,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get employer => $composableBuilder(
+    column: $table.employer,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get payDate => $composableBuilder(
+    column: $table.payDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get currency => $composableBuilder(
+    column: $table.currency,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get autoMatch => $composableBuilder(
+    column: $table.autoMatch,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$TransactionsTableOrderingComposer get salaryTxnId {
+    final $$TransactionsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.salaryTxnId,
+      referencedTable: $db.transactions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TransactionsTableOrderingComposer(
+            $db: $db,
+            $table: $db.transactions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PayslipsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $PayslipsTable> {
+  $$PayslipsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get month =>
+      $composableBuilder(column: $table.month, builder: (column) => column);
+
+  GeneratedColumn<String> get employer =>
+      $composableBuilder(column: $table.employer, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get payDate =>
+      $composableBuilder(column: $table.payDate, builder: (column) => column);
+
+  GeneratedColumn<String> get currency =>
+      $composableBuilder(column: $table.currency, builder: (column) => column);
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
+
+  GeneratedColumn<bool> get autoMatch =>
+      $composableBuilder(column: $table.autoMatch, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $$TransactionsTableAnnotationComposer get salaryTxnId {
+    final $$TransactionsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.salaryTxnId,
+      referencedTable: $db.transactions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TransactionsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.transactions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<T> payslipLinesRefs<T extends Object>(
+    Expression<T> Function($$PayslipLinesTableAnnotationComposer a) f,
+  ) {
+    final $$PayslipLinesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.payslipLines,
+      getReferencedColumn: (t) => t.payslipId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PayslipLinesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.payslipLines,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$PayslipsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $PayslipsTable,
+          Payslip,
+          $$PayslipsTableFilterComposer,
+          $$PayslipsTableOrderingComposer,
+          $$PayslipsTableAnnotationComposer,
+          $$PayslipsTableCreateCompanionBuilder,
+          $$PayslipsTableUpdateCompanionBuilder,
+          (Payslip, $$PayslipsTableReferences),
+          Payslip,
+          PrefetchHooks Function({bool salaryTxnId, bool payslipLinesRefs})
+        > {
+  $$PayslipsTableTableManager(_$AppDatabase db, $PayslipsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PayslipsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$PayslipsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$PayslipsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<DateTime> month = const Value.absent(),
+                Value<String> employer = const Value.absent(),
+                Value<DateTime?> payDate = const Value.absent(),
+                Value<String> currency = const Value.absent(),
+                Value<String?> note = const Value.absent(),
+                Value<int?> salaryTxnId = const Value.absent(),
+                Value<bool> autoMatch = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => PayslipsCompanion(
+                id: id,
+                month: month,
+                employer: employer,
+                payDate: payDate,
+                currency: currency,
+                note: note,
+                salaryTxnId: salaryTxnId,
+                autoMatch: autoMatch,
+                createdAt: createdAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required DateTime month,
+                Value<String> employer = const Value.absent(),
+                Value<DateTime?> payDate = const Value.absent(),
+                Value<String> currency = const Value.absent(),
+                Value<String?> note = const Value.absent(),
+                Value<int?> salaryTxnId = const Value.absent(),
+                Value<bool> autoMatch = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => PayslipsCompanion.insert(
+                id: id,
+                month: month,
+                employer: employer,
+                payDate: payDate,
+                currency: currency,
+                note: note,
+                salaryTxnId: salaryTxnId,
+                autoMatch: autoMatch,
+                createdAt: createdAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$PayslipsTable, Payslip>(table),
+                  $$PayslipsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({salaryTxnId = false, payslipLinesRefs = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (payslipLinesRefs) db.payslipLines,
+                  ],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (salaryTxnId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.salaryTxnId,
+                            referencedTable: $$PayslipsTableReferences
+                                ._salaryTxnIdTable(db),
+                            referencedColumn: $$PayslipsTableReferences
+                                ._salaryTxnIdTable(db)
+                                .id,
+                          ) as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (payslipLinesRefs)
+                        await $_getPrefetchedData<
+                          Payslip,
+                          $PayslipsTable,
+                          PayslipLine
+                        >(
+                          currentTable: table,
+                          referencedTable: $$PayslipsTableReferences
+                              ._payslipLinesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$PayslipsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).payslipLinesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.payslipId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$PayslipsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $PayslipsTable,
+      Payslip,
+      $$PayslipsTableFilterComposer,
+      $$PayslipsTableOrderingComposer,
+      $$PayslipsTableAnnotationComposer,
+      $$PayslipsTableCreateCompanionBuilder,
+      $$PayslipsTableUpdateCompanionBuilder,
+      (Payslip, $$PayslipsTableReferences),
+      Payslip,
+      PrefetchHooks Function({bool salaryTxnId, bool payslipLinesRefs})
+    >;
+typedef $$PayslipLinesTableCreateCompanionBuilder =
+    PayslipLinesCompanion Function({
+      Value<int> id,
+      required int payslipId,
+      required PayslipLineKind kind,
+      Value<String> code,
+      required String label,
+      required int amountMinor,
+      Value<int> sortOrder,
+    });
+typedef $$PayslipLinesTableUpdateCompanionBuilder =
+    PayslipLinesCompanion Function({
+      Value<int> id,
+      Value<int> payslipId,
+      Value<PayslipLineKind> kind,
+      Value<String> code,
+      Value<String> label,
+      Value<int> amountMinor,
+      Value<int> sortOrder,
+    });
+
+final class $$PayslipLinesTableReferences
+    extends BaseReferences<_$AppDatabase, $PayslipLinesTable, PayslipLine> {
+  $$PayslipLinesTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $PayslipsTable _payslipIdTable(_$AppDatabase db) =>
+      db.payslips.createAlias('payslip_lines__payslip_id__payslips__id');
+
+  $$PayslipsTableProcessedTableManager get payslipId {
+    final $_column = $_itemColumn<int>('payslip_id')!;
+
+    final manager = $$PayslipsTableTableManager(
+      $_db,
+      $_db.payslips,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_payslipIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$PayslipLinesTableFilterComposer
+    extends Composer<_$AppDatabase, $PayslipLinesTable> {
+  $$PayslipLinesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<PayslipLineKind, PayslipLineKind, int>
+  get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnFilters<String> get code => $composableBuilder(
+    column: $table.code,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get label => $composableBuilder(
+    column: $table.label,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get amountMinor => $composableBuilder(
+    column: $table.amountMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$PayslipsTableFilterComposer get payslipId {
+    final $$PayslipsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.payslipId,
+      referencedTable: $db.payslips,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PayslipsTableFilterComposer(
+            $db: $db,
+            $table: $db.payslips,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PayslipLinesTableOrderingComposer
+    extends Composer<_$AppDatabase, $PayslipLinesTable> {
+  $$PayslipLinesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get code => $composableBuilder(
+    column: $table.code,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get label => $composableBuilder(
+    column: $table.label,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get amountMinor => $composableBuilder(
+    column: $table.amountMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$PayslipsTableOrderingComposer get payslipId {
+    final $$PayslipsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.payslipId,
+      referencedTable: $db.payslips,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PayslipsTableOrderingComposer(
+            $db: $db,
+            $table: $db.payslips,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PayslipLinesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $PayslipLinesTable> {
+  $$PayslipLinesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<PayslipLineKind, int> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<String> get code =>
+      $composableBuilder(column: $table.code, builder: (column) => column);
+
+  GeneratedColumn<String> get label =>
+      $composableBuilder(column: $table.label, builder: (column) => column);
+
+  GeneratedColumn<int> get amountMinor => $composableBuilder(
+    column: $table.amountMinor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+
+  $$PayslipsTableAnnotationComposer get payslipId {
+    final $$PayslipsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.payslipId,
+      referencedTable: $db.payslips,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PayslipsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.payslips,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PayslipLinesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $PayslipLinesTable,
+          PayslipLine,
+          $$PayslipLinesTableFilterComposer,
+          $$PayslipLinesTableOrderingComposer,
+          $$PayslipLinesTableAnnotationComposer,
+          $$PayslipLinesTableCreateCompanionBuilder,
+          $$PayslipLinesTableUpdateCompanionBuilder,
+          (PayslipLine, $$PayslipLinesTableReferences),
+          PayslipLine,
+          PrefetchHooks Function({bool payslipId})
+        > {
+  $$PayslipLinesTableTableManager(_$AppDatabase db, $PayslipLinesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PayslipLinesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$PayslipLinesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$PayslipLinesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> payslipId = const Value.absent(),
+                Value<PayslipLineKind> kind = const Value.absent(),
+                Value<String> code = const Value.absent(),
+                Value<String> label = const Value.absent(),
+                Value<int> amountMinor = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
+              }) => PayslipLinesCompanion(
+                id: id,
+                payslipId: payslipId,
+                kind: kind,
+                code: code,
+                label: label,
+                amountMinor: amountMinor,
+                sortOrder: sortOrder,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int payslipId,
+                required PayslipLineKind kind,
+                Value<String> code = const Value.absent(),
+                required String label,
+                required int amountMinor,
+                Value<int> sortOrder = const Value.absent(),
+              }) => PayslipLinesCompanion.insert(
+                id: id,
+                payslipId: payslipId,
+                kind: kind,
+                code: code,
+                label: label,
+                amountMinor: amountMinor,
+                sortOrder: sortOrder,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$PayslipLinesTable, PayslipLine>(table),
+                  $$PayslipLinesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({payslipId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (payslipId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.payslipId,
+                        referencedTable: $$PayslipLinesTableReferences
+                            ._payslipIdTable(db),
+                        referencedColumn: $$PayslipLinesTableReferences
+                            ._payslipIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$PayslipLinesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $PayslipLinesTable,
+      PayslipLine,
+      $$PayslipLinesTableFilterComposer,
+      $$PayslipLinesTableOrderingComposer,
+      $$PayslipLinesTableAnnotationComposer,
+      $$PayslipLinesTableCreateCompanionBuilder,
+      $$PayslipLinesTableUpdateCompanionBuilder,
+      (PayslipLine, $$PayslipLinesTableReferences),
+      PayslipLine,
+      PrefetchHooks Function({bool payslipId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -6199,4 +8393,8 @@ class $AppDatabaseManager {
       $$MerchantRulesTableTableManager(_db, _db.merchantRules);
   $$BudgetsTableTableManager get budgets =>
       $$BudgetsTableTableManager(_db, _db.budgets);
+  $$PayslipsTableTableManager get payslips =>
+      $$PayslipsTableTableManager(_db, _db.payslips);
+  $$PayslipLinesTableTableManager get payslipLines =>
+      $$PayslipLinesTableTableManager(_db, _db.payslipLines);
 }

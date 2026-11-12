@@ -145,7 +145,7 @@ class AppLockController extends Notifier<AppLockState> {
   Future<void> unlock() async {
     if (!state.locked || state.authenticating) return;
     state = state.copyWith(authenticating: true);
-    final outcome = await _auth.authenticate('Unlock Pckt');
+    final outcome = await _auth.authenticate('Unlock PennyWise');
     switch (outcome) {
       case AuthOutcome.success:
         state = state.copyWith(locked: false, authenticating: false);
@@ -157,7 +157,7 @@ class AppLockController extends Notifier<AppLockState> {
           enabled: false,
           locked: false,
           authenticating: false,
-          message: 'This phone has no screen lock any more, so Pckt\'s app lock was turned off.',
+          message: 'This phone has no screen lock any more, so PennyWise\'s app lock was turned off.',
         );
       case AuthOutcome.canceled:
         state = state.copyWith(authenticating: false);

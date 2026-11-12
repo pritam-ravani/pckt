@@ -8,6 +8,9 @@ import android.net.ConnectivityManager
 import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
+import androidx.core.app.NotificationManagerCompat
+import android.provider.Settings
+import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.os.StatFs
@@ -29,8 +32,16 @@ class MainActivity : FlutterFragmentActivity() {
     /** Text shared to Pckt / pckt://ingest links not yet taken by Dart. */
     private val pendingShares = ArrayList<Map<String, Any?>>()
     private var shareChannel: MethodChannel? = null
+
+    /** Opened from a payment prompt; Dart asks once and shows Review. */
+    private var openReview = false
+
+    /** Opened from a reminder's Add button. */
+    private var openAdd = false
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        openReview = intent?.getBooleanExtra(EXTRA_OPEN_REVIEW, false) ?: false
+        openAdd = intent?.getBooleanExtra(EXTRA_OPEN_ADD, false) ?: false
         // Apply "Hide in recent apps" before the first frame, so even the
         // cold-start snapshot is protected. Dart keeps it in shared_preferences
         // (legacy store: FlutterSharedPreferences, keys prefixed "flutter.").
@@ -48,6 +59,53 @@ class MainActivity : FlutterFragmentActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "pckt/reminders").setMethodCallHandler { call, result ->
+            when (call.method) {
+                "reschedule" -> {
+                    Reminders.reschedule(this)
+                    result.success(null)
+                }
+                "test" -> {
+                    Reminders.show(this)
+                    result.success(null)
+                }
+                "canScheduleExact" -> result.success(Reminders.canScheduleExact(this))
+                "openExactSettings" -> {
+                    if (Build.VERSION.SDK_INT >= 31) {
+                        startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:$packageName")))
+                    }
+                    result.success(null)
+                }
+                else -> result.notImplemented()
+            }
+        }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "pckt/notifications").setMethodCallHandler { call, result ->
+            when (call.method) {
+                "hasAccess" -> result.success(NotificationManagerCompat.getEnabledListenerPackages(this).contains(packageName))
+                "openAccessSettings" -> {
+                    startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+                    result.success(null)
+                }
+                "openAppDetails" -> {
+                    startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
+                    result.success(null)
+                }
+                "pending" -> result.success(PaymentQueue.all(this))
+                "remove" -> {
+                    PaymentQueue.remove(this, call.arguments<List<String>>().orEmpty().toSet())
+                    result.success(null)
+                }
+                "takeOpenAdd" -> {
+                    result.success(openAdd)
+                    openAdd = false
+                }
+                "takeOpenReview" -> {
+                    result.success(openReview)
+                    openReview = false
+                }
+                else -> result.notImplemented()
+            }
+        }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "pckt/security").setMethodCallHandler { call, result ->
             when (call.method) {
                 // FLAG_SECURE: blank thumbnail in Recents, no screenshots.
@@ -139,6 +197,8 @@ class MainActivity : FlutterFragmentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        if (intent.getBooleanExtra(EXTRA_OPEN_REVIEW, false)) openReview = true
+        if (intent.getBooleanExtra(EXTRA_OPEN_ADD, false)) openAdd = true
         if (captureShare(intent)) shareChannel?.invokeMethod("pending", null)
     }
 
@@ -249,6 +309,8 @@ class MainActivity : FlutterFragmentActivity() {
         private const val SMS_REQUEST = 4201
         private const val NOTIFY_REQUEST = 4202
         const val EXTRA_FROM_ALERT = "com.pckt.pckt.FROM_ALERT"
+        const val EXTRA_OPEN_REVIEW = "com.pckt.pckt.OPEN_REVIEW"
+        const val EXTRA_OPEN_ADD = "com.pckt.pckt.OPEN_ADD"
         private const val EXTRA_HANDLED = "com.pckt.pckt.SHARE_HANDLED"
         // Must match SecurityPrefKeys.hideInRecents on the Dart side.
         private const val HIDE_IN_RECENTS_PREF = "security.hideInRecents"

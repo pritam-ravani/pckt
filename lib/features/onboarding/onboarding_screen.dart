@@ -49,7 +49,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               Text('Your money,\ntracked for you.', style: context.text.displaySmall?.copyWith(height: 1.05)),
               const SizedBox(height: 14),
               Text(
-                'Pckt reads bank, card & UPI alerts, sorts every payment into categories, '
+                'PennyWise reads bank, card & UPI alerts, sorts every payment into categories, '
                 'and never counts the same payment twice. Built India-first; works with 30+ currencies.',
                 style: context.text.bodyLarge?.copyWith(color: context.colors.onSurfaceVariant, height: 1.4),
               ),

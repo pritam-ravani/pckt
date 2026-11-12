@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/currency.dart';
 import '../../core/theme/icons.dart';
+import '../../core/theme/palette.dart';
 import '../../providers.dart';
+import '../../ui/widgets.dart';
 import '../../ui/currency_picker.dart';
 
 /// Settings → Money: the home currency used for totals, budgets and the
@@ -14,14 +16,12 @@ class HomeCurrencyTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final code = ref.watch(homeCurrencyProvider);
-    return ListTile(
-      leading: const Icon(PhosphorIconsRegular.coins),
-      title: const Text('Currency'),
-      subtitle: Text('${currencyFor(code)?.name ?? code} · totals and budgets'),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [Text(code), const SizedBox(width: 6), const Icon(PhosphorIconsBold.caretRight, size: 16)],
-      ),
+    return MenuTile(
+      icon: PhosphorIconsFill.coins,
+      color: Palette.categories[3],
+      title: 'Currency',
+      subtitle: '${currencyFor(code)?.name ?? code} · totals and budgets',
+      value: code,
       onTap: () => changeHomeCurrency(context, ref),
     );
   }

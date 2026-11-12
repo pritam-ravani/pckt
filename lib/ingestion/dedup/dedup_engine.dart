@@ -125,7 +125,7 @@ class DedupEngine {
     return (x.length >= 10 && y.contains(x)) || (y.length >= 10 && x.contains(y));
   }
 
-  static const _channels = {'sms', 'email'};
+  static const _channels = {'sms', 'email', 'statement', 'notification'};
   static String _channel(String key) => key.split(':').first;
 
   static bool _crossChannel(String sourceKey, Set<String> existing) {

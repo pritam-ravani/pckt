@@ -14,6 +14,8 @@ import '../budgets/budget_math.dart';
 import '../budgets/budget_providers.dart';
 import '../recurring/recurring_detector.dart';
 import '../recurring/recurring_screen.dart';
+import '../salary/salary_providers.dart';
+import '../settings/accounts_screen.dart';
 import '../stats.dart';
 
 class InsightsScreen extends ConsumerWidget {
@@ -50,10 +52,10 @@ class InsightsScreen extends ConsumerWidget {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
           children: [
-            Row(
-              children: [
-                const SizedBox(width: 4),
-                Expanded(child: Text('Insights', style: context.text.headlineSmall)),
+            ScreenTitle(
+              'Money',
+              subtitle: 'Your accounts, pay and plans',
+              actions: [
                 IconButton(onPressed: () => ctrl.shift(-1), icon: const Icon(PhosphorIconsBold.caretLeft, size: 20)),
                 Text(monthShort(month), style: context.text.titleMedium),
                 IconButton(
@@ -62,7 +64,55 @@ class InsightsScreen extends ConsumerWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SectionHeader('Your money'),
+            GridView.count(
+              crossAxisCount: 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 10,
+              childAspectRatio: 1.45,
+              children: [
+                FeatureTile(
+                  icon: PhosphorIconsFill.bank,
+                  color: Palette.categories[0],
+                  title: 'Accounts',
+                  value: _accountsSummary(ref.watch(balancesProvider).value),
+                  onTap: () => context.push('/settings/accounts'),
+                ),
+                FeatureTile(
+                  icon: PhosphorIconsFill.briefcase,
+                  color: Palette.categories[2],
+                  title: 'Salary',
+                  value: switch (ref.watch(payslipsProvider).value) {
+                    null => '…',
+                    final l when l.isEmpty => 'Add payslip',
+                    final l => 'Net ${moneyCompact(l.first.netMinor)}',
+                  },
+                  onTap: () => context.push('/salary'),
+                ),
+                FeatureTile(
+                  icon: PhosphorIconsFill.target,
+                  color: Palette.categories[1],
+                  title: 'Budgets',
+                  value: _budgetSummary(ref.watch(budgetProgressProvider).value),
+                  onTap: () => context.push('/budgets'),
+                ),
+                FeatureTile(
+                  icon: PhosphorIconsFill.repeat,
+                  color: Palette.categories[6],
+                  title: 'Recurring',
+                  value: switch (ref.watch(recurringProvider).value) {
+                    null => '…',
+                    final l when l.isEmpty => 'None found',
+                    final l => '${moneyCompact(monthlyTotalMinor(l))}/mo',
+                  },
+                  onTap: () => context.push('/recurring'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            SectionHeader('${monthLabel(month)} at a glance'),
             GridView.count(
               crossAxisCount: 2,
               shrinkWrap: true,
@@ -96,32 +146,6 @@ class InsightsScreen extends ConsumerWidget {
                   icon: PhosphorIconsFill.receipt,
                   label: 'Biggest spend',
                   value: biggest == null ? '—' : moneyCompact(biggest.txn.homeMinor!),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: _LinkTile(
-                    icon: PhosphorIconsFill.target,
-                    title: 'Budgets',
-                    subtitle: _budgetSummary(ref.watch(budgetProgressProvider).value),
-                    onTap: () => context.push('/budgets'),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _LinkTile(
-                    icon: PhosphorIconsFill.repeat,
-                    title: 'Recurring',
-                    subtitle: switch (ref.watch(recurringProvider).value) {
-                      null => '…',
-                      final l when l.isEmpty => 'None found',
-                      final l => '${moneyCompact(monthlyTotalMinor(l))}/mo',
-                    },
-                    onTap: () => context.push('/recurring'),
-                  ),
                 ),
               ],
             ),
@@ -176,6 +200,21 @@ class InsightsScreen extends ConsumerWidget {
   }
 }
 
+/// Money held across accounts with a balance set, in the home currency.
+String _accountsSummary(Map<int, AccountBalance>? balances) {
+  if (balances == null) return '…';
+  final set = balances.values.where(
+    (b) =>
+        b.isSet &&
+        !b.account.archived &&
+        b.account.kind != AccountKind.creditCard &&
+        b.account.currency == Currencies.home,
+  );
+  if (set.isEmpty) return 'Set balances';
+  final total = set.fold(0, (s, b) => s + b.balanceMinor!);
+  return total < 0 ? '−${moneyCompact(-total)}' : moneyCompact(total);
+}
+
 String _budgetSummary(List<BudgetProgress>? progress) {
   if (progress == null) return '…';
   if (progress.isEmpty) return 'Set a limit';
@@ -184,41 +223,6 @@ String _budgetSummary(List<BudgetProgress>? progress) {
   final overall = progress.where((p) => p.isOverall).firstOrNull;
   if (overall != null) return '${(overall.ratio * 100).round()}% used';
   return '${progress.length} active';
-}
-
-class _LinkTile extends StatelessWidget {
-  const _LinkTile({required this.icon, required this.title, required this.subtitle, required this.onTap});
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => AppCard(
-    padding: const EdgeInsets.all(14),
-    onTap: onTap,
-    child: Row(
-      children: [
-        Icon(icon, size: 22, color: Palette.violet),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: context.text.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
-              Text(
-                subtitle,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: context.text.bodySmall?.copyWith(color: context.colors.onSurfaceVariant),
-              ),
-            ],
-          ),
-        ),
-        Icon(PhosphorIconsBold.caretRight, size: 14, color: context.colors.onSurfaceVariant),
-      ],
-    ),
-  );
 }
 
 class _StatTile extends StatelessWidget {

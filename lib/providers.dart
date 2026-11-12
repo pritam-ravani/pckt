@@ -54,6 +54,20 @@ abstract final class PrefKeys {
   static const smsAlerts = 'sms.alerts';
   static const themeMode = 'themeMode';
 
+  /// Payment type and account last used in the add-transaction sheet.
+  static const quickAddMode = 'quickAdd.mode';
+  static const quickAddAccount = 'quickAdd.account';
+
+  /// Payment app notifications. Read natively as `flutter.notif.*` by
+  /// PaymentNotificationListener.kt: keep the names in sync.
+  static const notifCapture = 'notif.capture';
+  static const notifHints = 'notif.hints';
+
+  /// Check-in alerts. Read natively as `flutter.reminders.*` by Reminders.kt.
+  static const reminders = 'reminders.v1';
+  static const remindersOnlyPending = 'reminders.onlyPending';
+  static const remindersReviewCount = 'reminders.reviewCount';
+
   /// ISO 4217 code. Read natively by SmsAlertReceiver.kt as
   /// `flutter.currency.home` — keep the name in sync.
   static const homeCurrency = 'currency.home';

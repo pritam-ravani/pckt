@@ -41,6 +41,7 @@ class DataExport {
 
   final AppDatabase db;
 
+  // Kept from Pckt on purpose: existing backups must stay restorable.
   static const format = 'pckt-backup';
   static const formatVersion = 1;
 
@@ -168,19 +169,19 @@ class DataExport {
     } on FormatException {
       // fall through
     }
-    throw const BackupFormatException('This file is not a Pckt backup (not valid JSON).');
+    throw const BackupFormatException('This file is not a PennyWise backup (not valid JSON).');
   }
 
   (Map<String, Object?>, BackupSummary) _validate(Map<String, Object?> data) {
-    if (data['format'] != format) throw const BackupFormatException('This file is not a Pckt backup.');
+    if (data['format'] != format) throw const BackupFormatException('This file is not a PennyWise backup.');
     final fv = data['formatVersion'];
     if (fv is! int || fv > formatVersion) {
-      throw const BackupFormatException('This backup was made by a newer version of Pckt. Update the app first.');
+      throw const BackupFormatException('This backup was made by a newer version of PennyWise. Update the app first.');
     }
     final sv = data['schemaVersion'];
     if (sv is! int || sv < 1) throw const BackupFormatException('The backup is missing its schema version.');
     if (sv > db.schemaVersion) {
-      throw const BackupFormatException('This backup was made by a newer version of Pckt. Update the app first.');
+      throw const BackupFormatException('This backup was made by a newer version of PennyWise. Update the app first.');
     }
     final tables = data['tables'];
     if (tables is! Map) throw const BackupFormatException('The backup has no data.');

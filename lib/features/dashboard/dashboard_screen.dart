@@ -6,10 +6,13 @@ import '../../core/theme/icons.dart';
 
 import '../../core/format.dart';
 import '../../core/theme/palette.dart';
+import '../../data/db/database.dart';
 import '../../providers.dart';
 import '../../ui/widgets.dart';
+import '../activity/add_transaction_sheet.dart';
 import '../activity/transaction_sheet.dart';
 import '../budgets/budget_widgets.dart';
+import '../settings/accounts_screen.dart';
 import '../stats.dart';
 import 'category_donut.dart';
 import 'hero_card.dart';
@@ -46,7 +49,10 @@ class DashboardScreen extends ConsumerWidget {
                         children: [
                           HeroCard(stats: stats, month: month),
                           const SizedBox(height: 12),
+                          _QuickActions(review: review),
+                          const SizedBox(height: 12),
                           BudgetCard(hasSpending: stats.spent > 0),
+                          const _BalancesCard(),
                           if (review > 0) ...[const SizedBox(height: 12), _ReviewBanner(count: review)],
                           if (stats.unconverted > 0) ...[
                             const SizedBox(height: 12),
@@ -264,4 +270,121 @@ class _ConnectSmsCard extends ConsumerWidget {
       ],
     ),
   );
+}
+
+/// Money in your accounts and what your cards owe, in the home currency.
+/// Until a balance is set, invites the user to add one.
+class _BalancesCard extends ConsumerWidget {
+  const _BalancesCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final all = (ref.watch(balancesProvider).value ?? const {}).values
+        .where((b) => !b.account.archived && b.account.currency == Currencies.home)
+        .toList();
+    if (all.isEmpty) return const SizedBox.shrink();
+    final set = all.where((b) => b.isSet).toList();
+    final cards = set.where((b) => b.account.kind == AccountKind.creditCard);
+    final held = set.where((b) => b.account.kind != AccountKind.creditCard).fold(0, (s, b) => s + b.balanceMinor!);
+    final owed = cards.fold(0, (s, b) => s + (b.balanceMinor! < 0 ? -b.balanceMinor! : 0));
+    final mismatched = set.where((b) => (b.differenceMinor ?? 0) != 0).length;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: AppCard(
+        onTap: () => context.push('/settings/accounts'),
+        child: set.isEmpty
+            ? Row(
+                children: [
+                  const Icon(PhosphorIconsFill.bank),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Add your account balances to see what you have',
+                      style: context.text.titleSmall,
+                    ),
+                  ),
+                  const Icon(PhosphorIconsBold.caretRight, size: 16),
+                ],
+              )
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('In your accounts', style: context.text.bodySmall),
+                  Text(
+                    held < 0 ? '−${money(-held)}' : money(held),
+                    style: context.text.headlineSmall,
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      if (cards.isNotEmpty) InfoPill(icon: PhosphorIconsBold.creditCard, label: 'Cards due ${money(owed)}'),
+                      if (set.length < all.length)
+                        InfoPill(
+                          icon: PhosphorIconsBold.question,
+                          label: '${all.length - set.length} without a balance',
+                        ),
+                      if (mismatched > 0)
+                        InfoPill(
+                          icon: PhosphorIconsBold.question,
+                          label: '$mismatched differ${mismatched == 1 ? 's' : ''} from bank',
+                          color: Palette.coral,
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+}
+
+/// The four things people do most, one tap from Home.
+class _QuickActions extends StatelessWidget {
+  const _QuickActions({required this.review});
+  final int review;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget action(IconData icon, Color color, String label, VoidCallback onTap, {int badge = 0}) => Expanded(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            children: [
+              Badge(
+                isLabelVisible: badge > 0,
+                label: Text('$badge'),
+                child: IconBubble(icon, color: color, size: 46),
+              ),
+              const SizedBox(height: 6),
+              Text(label, style: context.text.labelMedium),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    return AppCard(
+      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 6),
+      child: Row(
+        children: [
+          action(PhosphorIconsFill.plusCircle, Palette.violet, 'Add', () => showAddTransactionSheet(context)),
+          action(
+            PhosphorIconsFill.checks,
+            Palette.categories[1],
+            'Review',
+            () => context.go('/activity?filter=review'),
+            badge: review,
+          ),
+          action(PhosphorIconsFill.bank, Palette.categories[0], 'Balances', () => context.push('/settings/accounts')),
+          action(PhosphorIconsFill.briefcase, Palette.categories[2], 'Salary', () => context.push('/salary')),
+        ],
+      ),
+    );
+  }
 }
